@@ -8,6 +8,7 @@ import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 import java.text.DecimalFormat;
 import java.util.Arrays;
+import org.bukkit.ChatColor;
 import org.bukkit.Color;
 import org.bukkit.plugin.PluginManager;
 /**
@@ -18,20 +19,17 @@ public final class Untold extends JavaPlugin {
     private PlayerListener playerListener;
 //    private HashMap<String, UntoldPlayer> players;
     private Economy economy;
-    private final String pluginName;
+    private static final String PLUGIN_NAME = ChatColor.GREEN + "Untold" + ChatColor.RESET;
     private double interestRate = 0;
     
-    private final Untold plugin;
-    
     public Untold() {
-        plugin = this;
-        pluginName = Color.GREEN + "Untold Realm";
+        
     }
     
     @Override
     public void onEnable(){
 //        players = new HashMap<String, UntoldPlayer>();
-//        playerListener = new PlayerListener(this);
+        playerListener = new PlayerListener();
         
         PluginManager pm = getServer().getPluginManager();
         if (!setupEconomy() ) {
@@ -40,13 +38,16 @@ public final class Untold extends JavaPlugin {
             return;
         }
         
+        MySQL.connect();
+        getLogger().info(MySQL.isConnected()? "connected": "no connection!!!!!!!");
+        
         pm.registerEvents(new PlayerListener(), this);
 //        getServer().getScheduler().scheduleSyncRepeatingTask(this, new TimeSave(this), 10*60*20, 10*60*20);
-        getServer().getScheduler().scheduleSyncDelayedTask(this, new Runnable() {
-            public void run() {
-            }
-        });
-        getLogger().info("Untold by Depths has been enabled");
+//        getServer().getScheduler().scheduleSyncDelayedTask(this, new Runnable() {
+//            public void run() {
+//            }
+//        });
+        getLogger().info(PLUGIN_NAME + " by Depths has been enabled");
         
         
     }
@@ -54,20 +55,17 @@ public final class Untold extends JavaPlugin {
     @Override
     public void onDisable() {
         this.getServer().getScheduler().cancelTasks(this);
-        getLogger().info("Time by Engeltj has been disabled");
+        getLogger().info(PLUGIN_NAME + " by Engeltj has been disabled");
     }
     
     @Override
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args) {
-        Commands tc = new Commands(this, sender, cmd, label, args);
-        return tc.executeCommand();
+        return playerListener.onCommand(sender, cmd, label, args);
     }
 
-    
     public void sendConsole(String message){
         getLogger().info(message);
     }
-
     
     private boolean setupEconomy() {
         if (getServer().getPluginManager().getPlugin("Vault") == null) {
