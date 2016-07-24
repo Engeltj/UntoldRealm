@@ -1,14 +1,8 @@
-name: Time
-main: com.tengel.time.Time
+name: Untold
+main: com.depths.untold.Untold
 # Note to developers: This next line cannot change, or the automatic versioning system will break.
 version: 0.1
 description: Provides additional events to the server
-depend: [Vault]
-authors: [Engeltj]
+depend: []
+authors: [Tim, Ben]
 commands:
-  ghost:
-    description: Makes you invisible to another player
-  life:
-    description: Checks how much life you have left remaining
-  age:
-    description: Lets you know how old you are

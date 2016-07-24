@@ -1,62 +1,31 @@
-/*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
-
 package com.depths.untold;
 
 
 import net.milkbowl.vault.economy.Economy;
-import org.bukkit.Location;
-import org.bukkit.Material;
-import org.bukkit.World;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
-import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.entity.Player;
-import org.bukkit.plugin.PluginManager;
 import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.scheduler.BukkitRunnable;
-
-import java.io.IOException;
-import java.io.InputStream;
-import java.net.URL;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.Statement;
 import java.text.DecimalFormat;
-import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Map.Entry;
-import java.util.Random;
-import org.bukkit.entity.Entity;
-import org.bukkit.entity.Monster;
-import org.bukkit.scoreboard.DisplaySlot;
-import org.bukkit.scoreboard.Objective;
-import org.bukkit.scoreboard.Scoreboard;
+import org.bukkit.Color;
+import org.bukkit.plugin.PluginManager;
 /**
  *
  * @author Tim
  */
 public final class Untold extends JavaPlugin {
-//    private PlayerListener playerListener;
+    private PlayerListener playerListener;
 //    private HashMap<String, UntoldPlayer> players;
     private Economy economy;
-    private String pluginName;
+    private final String pluginName;
     private double interestRate = 0;
     
     private final Untold plugin;
     
     public Untold() {
         plugin = this;
+        pluginName = Color.GREEN + "Untold Realm";
     }
     
     @Override
@@ -64,14 +33,14 @@ public final class Untold extends JavaPlugin {
 //        players = new HashMap<String, UntoldPlayer>();
 //        playerListener = new PlayerListener(this);
         
-        
+        PluginManager pm = getServer().getPluginManager();
         if (!setupEconomy() ) {
             getLogger().info(String.format("[%s] - Disabled due to no instance of Vault found!", getDescription().getName()));
             getServer().getPluginManager().disablePlugin(this);
             return;
         }
         
-        //pm.registerEvents(playerListener, this);
+        pm.registerEvents(new PlayerListener(), this);
 //        getServer().getScheduler().scheduleSyncRepeatingTask(this, new TimeSave(this), 10*60*20, 10*60*20);
         getServer().getScheduler().scheduleSyncDelayedTask(this, new Runnable() {
             public void run() {
