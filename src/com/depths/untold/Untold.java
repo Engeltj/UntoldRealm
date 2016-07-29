@@ -8,8 +8,10 @@ import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 import java.text.DecimalFormat;
 import java.util.Arrays;
+import java.util.List;
 import org.bukkit.ChatColor;
 import org.bukkit.Color;
+import org.bukkit.event.HandlerList;
 import org.bukkit.plugin.PluginManager;
 /**
  *
@@ -17,6 +19,7 @@ import org.bukkit.plugin.PluginManager;
  */
 public final class Untold extends JavaPlugin {
     private PlayerListener playerListener;
+    private Buildings buildings;
 //    private HashMap<String, UntoldPlayer> players;
     private Economy economy;
     private static final String PLUGIN_NAME = ChatColor.GREEN + "Untold" + ChatColor.RESET;
@@ -41,19 +44,20 @@ public final class Untold extends JavaPlugin {
         MySQL.connect();
         getLogger().info(MySQL.isConnected()? "connected": "no connection!!!!!!!");
         
+        
+        buildings = new Buildings();
+        buildings.load();
+        getLogger().info(PLUGIN_NAME + ": Buildings loaded.");
+        
         pm.registerEvents(new PlayerListener(), this);
 //        getServer().getScheduler().scheduleSyncRepeatingTask(this, new TimeSave(this), 10*60*20, 10*60*20);
-//        getServer().getScheduler().scheduleSyncDelayedTask(this, new Runnable() {
-//            public void run() {
-//            }
-//        });
+
         getLogger().info(PLUGIN_NAME + " by Depths has been enabled");
-        
-        
     }
  
     @Override
     public void onDisable() {
+        HandlerList.unregisterAll(playerListener);
         this.getServer().getScheduler().cancelTasks(this);
         getLogger().info(PLUGIN_NAME + " by Engeltj has been disabled");
     }
@@ -77,6 +81,10 @@ public final class Untold extends JavaPlugin {
         }
         economy = rsp.getProvider();
         return economy != null;
+    }
+    
+    public Buildings getBuildingsManager() {
+        return this.buildings;
     }
     
     public String intToString(int num, int digits) {

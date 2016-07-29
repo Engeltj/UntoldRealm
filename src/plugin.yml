@@ -8,3 +8,5 @@ authors: [Tim, Ben]
 commands:
   build:
     description: Allows you to build up your town
+  untold:
+    description: Untold admin commands
