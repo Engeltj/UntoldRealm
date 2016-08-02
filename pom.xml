@@ -63,11 +63,11 @@
             <artifactId>bukkit</artifactId>
             <version>1.10.2-R0.1-SNAPSHOT</version>
         </dependency>
-        <dependency>
+<!--        <dependency>
             <groupId>org.bukkit</groupId>
             <artifactId>craftbukkit</artifactId>
             <version>1.10.2-R0.1-SNAPSHOT</version>
-        </dependency>
+        </dependency>-->
 <!--        <dependency>
             <groupId>com.sk89q</groupId>
             <artifactId>worldguard</artifactId>

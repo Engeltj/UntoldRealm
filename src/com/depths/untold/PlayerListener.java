@@ -1,22 +1,17 @@
 package com.depths.untold;
 
+import com.depths.untold.Buildings.Building;
 import com.depths.untold.Buildings.BuildingType;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
-import org.bukkit.block.Block;
-import org.bukkit.block.Chest;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
-import org.bukkit.craftbukkit.v1_10_R1.block.CraftChest;
 import org.bukkit.enchantments.Enchantment;
 import org.bukkit.entity.HumanEntity;
-import org.bukkit.entity.Item;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
@@ -31,7 +26,6 @@ import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.material.MaterialData;
 
 
 /**
@@ -54,9 +48,7 @@ public class PlayerListener implements Listener {
                     Bukkit.broadcastMessage(ChatColor.GRAY+"Arnold Schwarzenegger:" +ChatColor.RESET+" Yes he is.");
                 }
             }, 40);
-        } else if (event.getMessage().contains("uuid")) {
-            event.getPlayer().sendMessage("Your UUID is: " + event.getPlayer().getUniqueId().toString());
-        } 
+        }
     }
     
     @EventHandler
@@ -75,7 +67,7 @@ public class PlayerListener implements Listener {
         if (event.canBuild()) {
             Player p = event.getPlayer();
             Location loc = event.getBlock().getLocation();
-            if (!plugin.getBuildingsManager().hasClearence(p.getUniqueId(), loc, 3)){
+            if (!plugin.getBuildingManager().canBuild(p, loc)){
                 p.sendMessage(ChatColor.RED+"Can't build here, too close to another players building.");
                 event.setCancelled(true);
             }
@@ -86,7 +78,7 @@ public class PlayerListener implements Listener {
     public void onBlockBreak(BlockBreakEvent event) {
         Player p = event.getPlayer();
         Location loc = event.getBlock().getLocation();
-        if (!plugin.getBuildingsManager().hasClearence(p.getUniqueId(), loc, 3)){
+        if (!plugin.getBuildingManager().canBuild(p, loc)){
             p.sendMessage(ChatColor.RED+"Can't build here, too close to another players building.");
             event.setCancelled(true);
         }
@@ -141,23 +133,28 @@ public class PlayerListener implements Listener {
                     p.openInventory(i);
                     event.setCancelled(true);
                 } else {
-                    final Location loc = event.getClickedBlock().getLocation();
-                    if (plugin.getBuildingsManager().hasCapital(p.getUniqueId())){
-                        p.sendMessage(ChatColor.RED+"You already have a capital.");
-                    } else if (plugin.getBuildingsManager().hasClearence(p.getUniqueId(), loc, 0)){
-                        Location loc_temp = event.getClickedBlock().getLocation();
-                        loc_temp.add(0,1,0);
-    //                    plugin.getBuildingsManager().create(p.getUniqueId(), loc, Buildings.BuildingType.CAPITAL);
-                        p.sendBlockChange(loc_temp.clone().add(3,0,3), Material.GLOWSTONE, (byte) 0);
-                        p.sendBlockChange(loc_temp.clone().add(-3,0,3), Material.GLOWSTONE, (byte) 0);
-                        p.sendBlockChange(loc_temp.clone().add(-3,0,-3), Material.GLOWSTONE, (byte) 0);
-                        p.sendBlockChange(loc_temp.clone().add(3,0,-3), Material.GLOWSTONE, (byte) 0);
-                        
-                        p.sendMessage(ChatColor.GREEN+"Capital built.");
-                        event.setCancelled(true);
-                    } else {
-                        p.sendMessage(ChatColor.RED+"Too close to another players building");
+                    Location loc = event.getClickedBlock().getLocation();
+                    for (BuildingType bt : BuildingType.values()) {
+                        if (im.getDisplayName().contains(bt.name())) {
+                            if (plugin.getBuildingManager().canCreateBuilding(p, loc, bt)) {
+                                if (!plugin.getPlayerManager().getUntoldPlayer(p).hitQuotaLimit(bt)) {
+                                    Building _b = plugin.getBuildingManager().create(p, loc, bt);
+                                    _b.showBorder(p);
+                                    p.sendMessage(ChatColor.GREEN + bt.name() + "built.");
+                                } else {
+                                    if (bt == BuildingType.CAPITAL) {
+                                        p.sendMessage(ChatColor.RED+"You already have a capital.");
+                                    } else {
+                                        p.sendMessage(ChatColor.RED+"You've hit the limit for this building type.");
+                                    }
+                                }
+                            } else {
+                                p.sendMessage(ChatColor.RED+"Too close to another players building");
+                            }
+                            break;
+                        }
                     }
+                    event.setCancelled(true);
                 }
             }
         }
@@ -181,7 +178,6 @@ public class PlayerListener implements Listener {
             return true;
         } else if (cmd.getName().equalsIgnoreCase("untold")) {
             if (args.length > 0 && args[0].equalsIgnoreCase("reload")) {
-                Untold plugin = (Untold) Bukkit.getServer().getPluginManager().getPlugin("Untold");
                 plugin.onDisable();
                 plugin.onEnable();
                 sender.sendMessage("Untold plugin reloaded");

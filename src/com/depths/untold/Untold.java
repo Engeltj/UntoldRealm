@@ -1,6 +1,7 @@
 package com.depths.untold;
 
 
+import com.depths.untold.Config.ConfigPlayers;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -8,9 +9,10 @@ import org.bukkit.plugin.RegisteredServiceProvider;
 import org.bukkit.plugin.java.JavaPlugin;
 import java.text.DecimalFormat;
 import java.util.Arrays;
-import java.util.List;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.UUID;
 import org.bukkit.ChatColor;
-import org.bukkit.Color;
 import org.bukkit.event.HandlerList;
 import org.bukkit.plugin.PluginManager;
 /**
@@ -20,10 +22,11 @@ import org.bukkit.plugin.PluginManager;
 public final class Untold extends JavaPlugin {
     private PlayerListener playerListener;
     private Buildings buildings;
-//    private HashMap<String, UntoldPlayer> players;
+    
     private Economy economy;
     private static final String PLUGIN_NAME = ChatColor.GREEN + "Untold" + ChatColor.RESET;
-    private double interestRate = 0;
+    
+    private ConfigPlayers configPlayers;
     
     public Untold() {
         
@@ -31,7 +34,6 @@ public final class Untold extends JavaPlugin {
     
     @Override
     public void onEnable(){
-//        players = new HashMap<String, UntoldPlayer>();
         playerListener = new PlayerListener();
         
         PluginManager pm = getServer().getPluginManager();
@@ -41,8 +43,8 @@ public final class Untold extends JavaPlugin {
             return;
         }
         
-        MySQL.connect();
-        getLogger().info(MySQL.isConnected()? "connected": "no connection!!!!!!!");
+//        MySQL.connect();
+//        getLogger().info(MySQL.isConnected()? "connected": "no connection!!!!!!!");
         
         
         buildings = new Buildings();
@@ -59,7 +61,7 @@ public final class Untold extends JavaPlugin {
     public void onDisable() {
         HandlerList.unregisterAll(playerListener);
         this.getServer().getScheduler().cancelTasks(this);
-        getLogger().info(PLUGIN_NAME + " by Engeltj has been disabled");
+        getLogger().info(PLUGIN_NAME + " by Depths has been disabled");
     }
     
     @Override
@@ -83,8 +85,14 @@ public final class Untold extends JavaPlugin {
         return economy != null;
     }
     
-    public Buildings getBuildingsManager() {
+    public Buildings getBuildingManager() {
         return this.buildings;
+    }
+    
+    public ConfigPlayers getPlayerManager() {
+        if (configPlayers == null)
+            configPlayers = new ConfigPlayers();
+        return configPlayers;
     }
     
     public String intToString(int num, int digits) {
