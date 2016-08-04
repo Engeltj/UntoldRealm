@@ -3,7 +3,9 @@ package com.depths.untold;
 import com.depths.untold.Buildings.Building;
 import com.depths.untold.Buildings.BuildingType;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
@@ -22,6 +24,7 @@ import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
@@ -68,7 +71,7 @@ public class PlayerListener implements Listener {
             Player p = event.getPlayer();
             Location loc = event.getBlock().getLocation();
             if (!plugin.getBuildingManager().canBuild(p, loc)){
-                p.sendMessage(ChatColor.RED+"Can't build here, too close to another players building.");
+                p.sendMessage(ChatColor.RED+"Can't build here, too close to another building.");
                 event.setCancelled(true);
             }
         }
@@ -79,7 +82,7 @@ public class PlayerListener implements Listener {
         Player p = event.getPlayer();
         Location loc = event.getBlock().getLocation();
         if (!plugin.getBuildingManager().canBuild(p, loc)){
-            p.sendMessage(ChatColor.RED+"Can't build here, too close to another players building.");
+            p.sendMessage(ChatColor.RED+"Can't build here, too close to another building.");
             event.setCancelled(true);
         }
     }
@@ -114,46 +117,62 @@ public class PlayerListener implements Listener {
     
     @EventHandler
     public void onPlayerInteract(PlayerInteractEvent event) {
-        Action a = event.getAction();
-        ItemStack is = event.getItem();
-        if (is != null && (a == Action.RIGHT_CLICK_BLOCK || a == Action.LEFT_CLICK_BLOCK || a == Action.LEFT_CLICK_AIR)) {
+        if (event.getHand() == EquipmentSlot.HAND && event.hasItem()) {
             ItemMeta im = event.getItem().getItemMeta();
-            if (im != null && im.getDisplayName() != null && im.getDisplayName().contains("Build Tool")) {
-                final Player p = event.getPlayer();
-                if (a == Action.LEFT_CLICK_BLOCK || a == Action.LEFT_CLICK_AIR) {
-                    Inventory i = Bukkit.createInventory(p, 9, "Build Tools");
+            if (im.getDisplayName().contains("Build Tool")) {
+                Player p = event.getPlayer();
+                UntoldPlayer up = plugin.getPlayerManager().getUntoldPlayer(p);
+                if (event.getAction() == Action.LEFT_CLICK_BLOCK || event.getAction() == Action.LEFT_CLICK_AIR) {  // Tool selection
+                    Inventory i = Bukkit.createInventory(p, 18, "Build Tools");
                     for (BuildingType bt : BuildingType.values()) {
-                        ItemStack iss = new ItemStack(Material.STICK);
-                        ItemMeta imm = is.getItemMeta();
+                        ItemStack iss = new ItemStack(Material.SIGN);
+                        ItemMeta imm = iss.getItemMeta();
                         imm.setDisplayName(bt.name());
+                        if (bt == BuildingType.REGION) {
+                            iss.setType(Material.STICK);
+                            List<String> lore = new ArrayList<String>();
+                            lore.add("Tool for creating protection regions");
+                            imm.setLore(lore);
+                        }
                         iss.setItemMeta(imm);
                         i.addItem(iss);
                     }
-                    
+
                     p.openInventory(i);
                     event.setCancelled(true);
-                } else {
+                } else if (event.getAction() == Action.RIGHT_CLICK_BLOCK) { // Create region
                     Location loc = event.getClickedBlock().getLocation();
-                    for (BuildingType bt : BuildingType.values()) {
-                        if (im.getDisplayName().contains(bt.name())) {
-                            if (plugin.getBuildingManager().canCreateBuilding(p, loc, bt)) {
-                                if (!plugin.getPlayerManager().getUntoldPlayer(p).hitQuotaLimit(bt)) {
-                                    Building _b = plugin.getBuildingManager().create(p, loc, bt);
-                                    _b.showBorder(p);
-                                    p.sendMessage(ChatColor.GREEN + bt.name() + "built.");
-                                } else {
-                                    if (bt == BuildingType.CAPITAL) {
-                                        p.sendMessage(ChatColor.RED+"You already have a capital.");
+                    Building b = plugin.getBuildingManager().getBuilding(loc);
+                    if (up.isModifyingBuilding()) {
+                        up.modifyBuilding(p, b, loc);
+                        p.sendMessage(ChatColor.GREEN + "Region resized.");
+                    } else if (b != null && b.owner.equals(p.getUniqueId())) { // if is a building and owned by player
+                        up.modifyBuilding(p, b, loc);
+                        p.sendMessage(ChatColor.GREEN + "Select where you wish to expand region to");
+                    } else {
+                        for (BuildingType bt : BuildingType.values()) {
+                            if (im.getDisplayName().contains(bt.name())) {
+                                String can = plugin.getBuildingManager().canCreateBuilding(p, loc, bt);
+                                if (can == null) {
+                                    if (!plugin.getPlayerManager().getUntoldPlayer(p).hitQuotaLimit(bt)) {
+                                        Building _b = plugin.getBuildingManager().create(p, loc, bt);
+                                        _b.showBorder(p);
+                                        p.sendMessage(ChatColor.GREEN + bt.name() + " built.");
                                     } else {
-                                        p.sendMessage(ChatColor.RED+"You've hit the limit for this building type.");
+                                        if (bt == BuildingType.CAPITAL) {
+                                            p.sendMessage(ChatColor.RED+"You already have a capital.");
+                                        } else {
+                                            p.sendMessage(ChatColor.RED+"You've hit the limit for this building type.");
+                                        }
                                     }
+                                } else {
+                                    p.sendMessage(ChatColor.RED+can);
                                 }
-                            } else {
-                                p.sendMessage(ChatColor.RED+"Too close to another players building");
+                                break;
                             }
-                            break;
                         }
                     }
+                    
                     event.setCancelled(true);
                 }
             }
