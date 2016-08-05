@@ -1,12 +1,10 @@
 package com.depths.untold;
 
-import com.depths.untold.Buildings.Building;
 import com.depths.untold.Buildings.BuildingType;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import org.bukkit.Bukkit;
-import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
@@ -44,7 +42,7 @@ public class UntoldPlayer {
     private int getBuildingCount(BuildingType bt) {
         int count = 0;
         for (Building b : plugin.getBuildingManager().getBuildings()) {
-            if (bt == b.type && b.owner.equals(this.uuid)) {
+            if (bt == b.type && b.hasMember(uuid)) {
                 count ++;
             }
         }
@@ -55,7 +53,7 @@ public class UntoldPlayer {
         return quotas.get(b) - getBuildingCount(b) <= 0;
     }
     
-    public void modifyBuilding(Player p, Building b, Location loc) {
+    public Building modifyBuilding(Player p, Building b, Location loc) {
         Vector v = loc.toVector();
         v.setY(0);
         
@@ -63,7 +61,7 @@ public class UntoldPlayer {
             move_building = v;
         } else {
             final Player _p = p;
-            final Building _b = plugin.getBuildingManager().getBuilding(new Location(loc.getWorld(), move_building.getX(), move_building.getY(), move_building.getZ()));
+            final Building _b = plugin.getBuildingManager().getBuildingFromCorner(new Location(loc.getWorld(), move_building.getX(), move_building.getY(), move_building.getZ()));
             int idx = _b.corners.indexOf(move_building);
             if (idx == 0) {
                 _b.corners.get(0).setX(loc.getX());
@@ -92,7 +90,9 @@ public class UntoldPlayer {
                 }
             }, 5);
             move_building = null;
+            return _b;
         }
+        return null;
     }
     
     public boolean isModifyingBuilding() {

@@ -1,15 +1,17 @@
 package com.depths.untold;
 
-import com.depths.untold.Buildings.Building;
+import com.depths.untold.Building;
 import com.depths.untold.Buildings.BuildingType;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Set;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
+import org.bukkit.block.Sign;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.enchantments.Enchantment;
@@ -71,7 +73,7 @@ public class PlayerListener implements Listener {
             Player p = event.getPlayer();
             Location loc = event.getBlock().getLocation();
             if (!plugin.getBuildingManager().canBuild(p, loc)){
-                p.sendMessage(ChatColor.RED+"Can't build here, too close to another building.");
+                p.sendMessage(ChatColor.RED+"Can't build here, area is protected by another player.");
                 event.setCancelled(true);
             }
         }
@@ -82,7 +84,7 @@ public class PlayerListener implements Listener {
         Player p = event.getPlayer();
         Location loc = event.getBlock().getLocation();
         if (!plugin.getBuildingManager().canBuild(p, loc)){
-            p.sendMessage(ChatColor.RED+"Can't build here, too close to another building.");
+            p.sendMessage(ChatColor.RED+"Can't build here, area is protected by another player.");
             event.setCancelled(true);
         }
     }
@@ -115,25 +117,66 @@ public class PlayerListener implements Listener {
         }
     }
     
+//    @EventHandler
+//    public void onPlayerChangeHandItem(PlayerItemHeldEvent event) {
+//        UntoldPlayer up = plugin.getPlayerManager().getUntoldPlayer(event.getPlayer());
+//        plugin.getBuildingManager().
+//    }
+    
+    @EventHandler
+    public void onSignBreak(BlockBreakEvent e) {
+        if (e.getBlock().getType() == Material.SIGN || e.getBlock().getType() == Material.SIGN_POST) {
+            Player p = e.getPlayer();
+            Sign sign = (Sign) e.getBlock().getState();
+            String line1 = sign.getLine(1);
+            for (BuildingType bt : BuildingType.values()) {
+                if (line1.contains(bt.name())) {
+                    Building b = plugin.getBuildingManager().getBuilding(sign.getLocation());
+                    if (b != null) {
+                        if (b.hasMember(p)) {
+                            b.clearBorders(p);
+                            if (b.type == BuildingType.TOWN && plugin.getBuildingManager().getTownBuildings(b).size() > 0) {
+                                p.sendMessage(ChatColor.GREEN + "Cannot disband settlement until all buildings within are disbanded.");
+                            }
+                            plugin.getBuildingManager().destroy(b);
+                            p.sendMessage(ChatColor.GREEN + bt.name() + " destroyed.");
+                        } else {
+                            e.setCancelled(true);
+                        }
+                    }
+                    break;
+                }
+            }
+        }
+    }
+    
     @EventHandler
     public void onPlayerInteract(PlayerInteractEvent event) {
         if (event.getHand() == EquipmentSlot.HAND && event.hasItem()) {
             ItemMeta im = event.getItem().getItemMeta();
-            if (im.getDisplayName().contains("Build Tool")) {
+            String dn = (im != null) ? im.getDisplayName() : null;
+            if (dn != null && im.getDisplayName().contains("Build Tool")) {
                 Player p = event.getPlayer();
                 UntoldPlayer up = plugin.getPlayerManager().getUntoldPlayer(p);
                 if (event.getAction() == Action.LEFT_CLICK_BLOCK || event.getAction() == Action.LEFT_CLICK_AIR) {  // Tool selection
                     Inventory i = Bukkit.createInventory(p, 18, "Build Tools");
                     for (BuildingType bt : BuildingType.values()) {
-                        ItemStack iss = new ItemStack(Material.SIGN);
-                        ItemMeta imm = iss.getItemMeta();
-                        imm.setDisplayName(bt.name());
-                        if (bt == BuildingType.REGION) {
-                            iss.setType(Material.STICK);
+                        ItemStack iss;
+                        ItemMeta imm;
+                        if (bt == BuildingType.TOWN) {
+                            iss = new ItemStack(Material.STICK);
+                            imm = iss.getItemMeta();
+                            imm.setDisplayName(bt.name());
                             List<String> lore = new ArrayList<String>();
                             lore.add("Tool for creating protection regions");
                             imm.setLore(lore);
+                            iss.addUnsafeEnchantment(Enchantment.DURABILITY, 1);
+                        } else {
+                            iss = new ItemStack(Material.SIGN);
+                            imm = iss.getItemMeta();
+                            imm.setDisplayName(bt.name());
                         }
+                        
                         iss.setItemMeta(imm);
                         i.addItem(iss);
                     }
@@ -142,13 +185,13 @@ public class PlayerListener implements Listener {
                     event.setCancelled(true);
                 } else if (event.getAction() == Action.RIGHT_CLICK_BLOCK) { // Create region
                     Location loc = event.getClickedBlock().getLocation();
-                    Building b = plugin.getBuildingManager().getBuilding(loc);
+                    Building b = plugin.getBuildingManager().getBuildingFromCorner(loc);
                     if (up.isModifyingBuilding()) {
+                        b = up.modifyBuilding(p, b, loc);
+                        p.sendMessage(ChatColor.GREEN + b.type.name() + " region resized.");
+                    } else if (b != null && b.hasMember(p)) { // if is a building and owned by player
                         up.modifyBuilding(p, b, loc);
-                        p.sendMessage(ChatColor.GREEN + "Region resized.");
-                    } else if (b != null && b.owner.equals(p.getUniqueId())) { // if is a building and owned by player
-                        up.modifyBuilding(p, b, loc);
-                        p.sendMessage(ChatColor.GREEN + "Select where you wish to expand region to");
+                        p.sendMessage(ChatColor.YELLOW + "Right-click where you wish to resize the region to");
                     } else {
                         for (BuildingType bt : BuildingType.values()) {
                             if (im.getDisplayName().contains(bt.name())) {
@@ -156,8 +199,15 @@ public class PlayerListener implements Listener {
                                 if (can == null) {
                                     if (!plugin.getPlayerManager().getUntoldPlayer(p).hitQuotaLimit(bt)) {
                                         Building _b = plugin.getBuildingManager().create(p, loc, bt);
+                                        Block block = loc.getBlock();
+                                        Block above = block.getRelative( BlockFace.UP );
+                                        above.setType( Material.SIGN_POST );
+                                        Sign sign = (Sign) above.getState();
+                                        sign.setLine(1, bt.name());
+                                        sign.update();
                                         _b.showBorder(p);
                                         p.sendMessage(ChatColor.GREEN + bt.name() + " built.");
+                                        p.sendMessage(ChatColor.YELLOW + "To expand region, right-click a corner");
                                     } else {
                                         if (bt == BuildingType.CAPITAL) {
                                             p.sendMessage(ChatColor.RED+"You already have a capital.");
