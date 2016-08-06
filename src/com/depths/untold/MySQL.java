@@ -3,6 +3,7 @@ package com.depths.untold;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+
 import org.bukkit.Bukkit;
 import org.bukkit.command.ConsoleCommandSender;
 
@@ -11,12 +12,12 @@ import org.bukkit.command.ConsoleCommandSender;
  * @author Tim
  */
 public class MySQL {
-    public static String host = "localhost";
-    public static String port = "3306";
-    public static String database = "untold";
-    public static String username = "untold";
-    public static String password = "7ce8jE3KnXewuZtS";
-    public static Connection con;
+    private static String host = "localhost";
+    private static String port = "3306";
+    private static String database = "untold";
+    private static String username = "untold";
+    private static String password = "Fv3P5eCzwUeY8dtq";
+    private static Connection con;
 
     static ConsoleCommandSender console = Bukkit.getConsoleSender();
 

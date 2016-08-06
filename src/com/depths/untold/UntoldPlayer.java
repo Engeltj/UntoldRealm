@@ -1,6 +1,7 @@
 package com.depths.untold;
 
 import com.depths.untold.Buildings.BuildingType;
+import static org.depths.untold.generated.Tables.PLAYERS;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -8,6 +9,9 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
+import org.jooq.*;
+import org.jooq.impl.*;
+
 
 /**
  *
@@ -21,7 +25,7 @@ public class UntoldPlayer {
     
     transient private Vector move_building;
     
-    private Map<BuildingType, Integer> quotas = new HashMap<BuildingType, Integer>();
+    private final Map<BuildingType, Integer> quotas = new HashMap<BuildingType, Integer>();
     
     public UntoldPlayer(Player p) {
         this.plugin = (Untold) Bukkit.getServer().getPluginManager().getPlugin("Untold");
@@ -29,6 +33,7 @@ public class UntoldPlayer {
         for (BuildingType b : BuildingType.values()) {
             quotas.put(b, 1);
         }
+        load();
     }
     
     public void addExperience(int exp) {
@@ -99,7 +104,14 @@ public class UntoldPlayer {
         return move_building != null;
     }
     
-    
+    private void load() {
+        DSLContext db = DSL.using(MySQL.getConnection(), SQLDialect.MYSQL);
+        Record r = db.select().from(PLAYERS).where(PLAYERS.UUID.equal(uuid.toString())).fetchOne();
+        if (r == null) {
+            Bukkit.broadcastMessage("Player not found, creating for " + uuid.toString());
+            db.insertInto(PLAYERS, PLAYERS.UUID).values(uuid.toString());
+        }
+    }
     
 //    public boolean load() {
 //        Connection con = MySQL.getConnection();

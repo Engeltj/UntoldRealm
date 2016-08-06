@@ -43,8 +43,8 @@ public final class Untold extends JavaPlugin {
             return;
         }
         
-//        MySQL.connect();
-//        getLogger().info(MySQL.isConnected()? "connected": "no connection!!!!!!!");
+        MySQL.connect();
+        getLogger().info(MySQL.isConnected()? "connected": "no connection!!!!!!!");
         
         
         buildings = new Buildings();
