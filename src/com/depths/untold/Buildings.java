@@ -104,23 +104,7 @@ public class Buildings {
     
     public void save() {
         for (Building b : buildings) {
-            DSLContext db = DSL.using(MySQL.getConnection(), SQLDialect.MYSQL);
-            if (b.id == 0) {
-                db.insertInto(BUILDINGS, BUILDINGS.OWNER, BUILDINGS.TYPE).values(b.getOwner().toString(), b.type.name()).execute();
-                Record br = db.select().from(BUILDINGS)
-                        .where(BUILDINGS.OWNER.equal(b.getOwner().toString()).and(BUILDINGS.TYPE.equal(b.type.name())))
-                        .orderBy(BUILDINGS.ID.desc()).fetchAny();
-                int id = br.get(BUILDINGS.ID);
-                for (int i = 0; i< b.corners.size(); i++) {
-                    db.insertInto(BUILDING_COORDS, BUILDING_COORDS.BUILDING_ID, BUILDING_COORDS.CORNER_ID, BUILDING_COORDS.X, BUILDING_COORDS.Z)
-                        .values(id, i, b.corners.get(i).getBlockX(), b.corners.get(i).getBlockZ()).execute();
-                }
-                for (UUID uuid : b.getMembers()) {
-                    db.insertInto(BUILDING_MEMBERS, BUILDING_MEMBERS.BUILDING_ID, BUILDING_MEMBERS.UUID)
-                        .values(id, uuid.toString()).execute();
-                }
-                
-            }
+            b.save();
         }
     }
     

@@ -15,6 +15,15 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
+import static org.depths.untold.generated.Tables.BUILDINGS;
+import static org.depths.untold.generated.Tables.BUILDING_COORDS;
+import static org.depths.untold.generated.Tables.BUILDING_MEMBERS;
+import org.depths.untold.generated.tables.records.BuildingCoordsRecord;
+import org.jooq.DSLContext;
+import org.jooq.Record;
+import org.jooq.Result;
+import org.jooq.SQLDialect;
+import org.jooq.impl.DSL;
 
 /**
  *
@@ -94,6 +103,31 @@ public class Building {
             }
             borders.remove(uuid);
         }
+    }
+    
+    public void save() {
+        DSLContext db = DSL.using(MySQL.getConnection(), SQLDialect.MYSQL);
+        if (id == 0) { // create new building
+            db.insertInto(BUILDINGS, BUILDINGS.OWNER, BUILDINGS.TYPE).values(getOwner().toString(), type.name()).execute();
+            Record br = db.select().from(BUILDINGS)
+                    .where(BUILDINGS.OWNER.equal(getOwner().toString()).and(BUILDINGS.TYPE.equal(type.name())))
+                    .orderBy(BUILDINGS.ID.desc()).fetchAny();
+            id = br.get(BUILDINGS.ID);
+            
+        }
+        
+        db.deleteFrom(BUILDING_COORDS).where(BUILDING_COORDS.BUILDING_ID.equal(id)).execute();
+        db.deleteFrom(BUILDING_MEMBERS).where(BUILDING_MEMBERS.BUILDING_ID.equal(id)).execute();
+        
+        for (int i = 0; i< corners.size(); i++) {
+            db.insertInto(BUILDING_COORDS, BUILDING_COORDS.BUILDING_ID, BUILDING_COORDS.CORNER_ID, BUILDING_COORDS.X, BUILDING_COORDS.Z)
+                .values(id, i, corners.get(i).getBlockX(), corners.get(i).getBlockZ()).execute();
+        }
+        for (UUID uuid : getMembers()) {
+            db.insertInto(BUILDING_MEMBERS, BUILDING_MEMBERS.BUILDING_ID, BUILDING_MEMBERS.UUID)
+                .values(id, uuid.toString()).execute();
+        }
+        
     }
 
     public void showBorder(Player p) {
