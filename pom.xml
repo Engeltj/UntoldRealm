@@ -150,20 +150,13 @@
                             <goal>shade</goal>
                         </goals>
                         <configuration>
-                            <minimizeJar>true</minimizeJar>
-                            <filters>
-                                <filter>
-                                    <artifact>*:*:*:*</artifact>
-                                    <excludes>
-                                        <exclude>**/**.java</exclude>
-                                        <exclude>AUTHORS</exclude>
-                                        <exclude>LICENSE</exclude>
-                                        <exclude>**.txt</exclude>
-                                        <exclude>OSGI-INF/**</exclude>
-                                        <exclude>META-INF/**</exclude>
-                                    </excludes>
-                                </filter>
-                            </filters>
+                            <createDependencyReducedPom>false</createDependencyReducedPom>
+                            <minimizeJar>false</minimizeJar>
+                            <artifactSet>
+                                <includes>
+                                    <include>org.jooq:jooq:*:*</include>
+                                </includes>
+                            </artifactSet>
                         </configuration>
                     </execution>
                 </executions>

@@ -1,6 +1,7 @@
 package com.depths.untold;
 
 import com.depths.untold.Buildings.BuildingType;
+import java.sql.Timestamp;
 import static org.depths.untold.generated.Tables.PLAYERS;
 import java.util.HashMap;
 import java.util.Map;
@@ -21,7 +22,8 @@ public class UntoldPlayer {
     
     private final UUID uuid;
     private final Untold plugin;
-    private int experience = 0;
+    private long experience = 0L;
+    private Timestamp lastlogin;
     
     transient private Vector move_building;
     
@@ -40,7 +42,7 @@ public class UntoldPlayer {
         experience += exp;
     }
     
-    public int getExperience() {
+    public long getExperience() {
         return experience;
     }
     
@@ -93,7 +95,7 @@ public class UntoldPlayer {
                 public void run() {
                     _b.showBorder(_p);
                 }
-            }, 5);
+            }, 1);
             move_building = null;
             return _b;
         }
@@ -108,9 +110,20 @@ public class UntoldPlayer {
         DSLContext db = DSL.using(MySQL.getConnection(), SQLDialect.MYSQL);
         Record r = db.select().from(PLAYERS).where(PLAYERS.UUID.equal(uuid.toString())).fetchOne();
         if (r == null) {
-            Bukkit.broadcastMessage("Player not found, creating for " + uuid.toString());
-            db.insertInto(PLAYERS, PLAYERS.UUID).values(uuid.toString());
+            plugin.sendConsole("New player found, creating for " + uuid.toString());
+            db.insertInto(PLAYERS, PLAYERS.UUID).values(uuid.toString()).execute();
+            r = db.select().from(PLAYERS).where(PLAYERS.UUID.equal(uuid.toString())).fetchOne();
         }
+        lastlogin = r.get(PLAYERS.LASTLOGIN);
+        experience = r.get(PLAYERS.EXPERIENCE);
+    }
+    
+    public void save() {
+        DSLContext db = DSL.using(MySQL.getConnection(), SQLDialect.MYSQL);
+        db.update(PLAYERS)
+                .set(PLAYERS.EXPERIENCE, experience)
+                .set(PLAYERS.LASTLOGIN, lastlogin)
+                .where(PLAYERS.UUID.equal(uuid.toString())).execute();
     }
     
 //    public boolean load() {

@@ -1,7 +1,6 @@
 package com.depths.untold;
 
 
-import com.depths.untold.Config.ConfigPlayers;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -26,7 +25,7 @@ public final class Untold extends JavaPlugin {
     private Economy economy;
     private static final String PLUGIN_NAME = ChatColor.GREEN + "Untold" + ChatColor.RESET;
     
-    private ConfigPlayers configPlayers;
+    private UntoldPlayers untoldPlayers;
     
     public Untold() {
         
@@ -89,10 +88,10 @@ public final class Untold extends JavaPlugin {
         return this.buildings;
     }
     
-    public ConfigPlayers getPlayerManager() {
-        if (configPlayers == null)
-            configPlayers = new ConfigPlayers();
-        return configPlayers;
+    public UntoldPlayers getPlayerManager() {
+        if (untoldPlayers == null)
+            untoldPlayers = new UntoldPlayers();
+        return untoldPlayers;
     }
     
     public String intToString(int num, int digits) {

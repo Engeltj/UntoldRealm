@@ -3,10 +3,16 @@ package com.depths.untold;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
+import static org.depths.untold.generated.Tables.*;
+import org.depths.untold.generated.tables.records.BuildingsRecord;
+import org.jooq.DSLContext;
+import org.jooq.Record;
+import org.jooq.Result;
+import org.jooq.SQLDialect;
+import org.jooq.impl.DSL;
 
 /**
  *
@@ -28,6 +34,7 @@ public class Buildings {
         List<Building> _buildings = new ArrayList<Building>();
         if (b.type == BuildingType.TOWN) {
             List<UUID> members = b.getMembers();
+            members.add(b.getOwner());
             for (Building _b : buildings) {
                 for (UUID uuid : members) {
                     if (_b != b && _b.hasMember(uuid))
@@ -67,25 +74,54 @@ public class Buildings {
     }
     
     public void load () {
-//        Connection conn = MySQL.getConnection();
-//        try {
-//            Statement st = conn.createStatement();
-//            ResultSet rs = st.executeQuery("SELECT * FROM buildings;");
-//            while (rs.next()) {
-//                int id = rs.getInt("id");
-//                UUID owner = UUID.fromString(rs.getString("uuid"));
-//                double x = rs.getDouble("x");
-//                double z = rs.getDouble("z");
-//                int size = rs.getInt("size");
-//                String type = rs.getString("type");
-//                
-//                Vector v = new Vector(x,0,z);
-//                
-//                buildings.add(new Building(id, owner, v, size, BuildingType.valueOf(type)));
-//            }
-//        } catch (SQLException ex) {
-//            Logger.getLogger(Buildings.class.getName()).log(Level.SEVERE, null, ex);
-//        }
+        buildings.clear();
+        DSLContext db = DSL.using(MySQL.getConnection(), SQLDialect.MYSQL);
+        Record[] lr = db.select().from(BUILDINGS).fetchArray();
+        for (Record r : lr) {
+            int id = r.get(BUILDINGS.ID);
+            BuildingType type = BuildingType.valueOf(r.get(BUILDINGS.TYPE));
+            UUID owner = UUID.fromString(r.get(BUILDINGS.OWNER));
+            
+            Record[] r_corners = db.select().from(BUILDING_COORDS).where(BUILDING_COORDS.BUILDING_ID.equal(id)).orderBy(BUILDING_COORDS.CORNER_ID.asc()).fetchArray();
+            List<Vector> corners = new ArrayList();
+            for (Record c : r_corners) {
+                int x = c.get(BUILDING_COORDS.X);
+                int z = c.get(BUILDING_COORDS.Z);
+                Vector v = new Vector(x, 0, z);
+                corners.add(v);
+            }
+            
+            Building b = new Building(id, owner, corners, type);
+            Record[] r_members = db.select().from(BUILDING_MEMBERS).where(BUILDING_MEMBERS.BUILDING_ID.equal(id)).fetchArray();
+            for (Record c : r_members) {
+                UUID uuid = UUID.fromString(c.get(BUILDING_MEMBERS.UUID));
+                b.addMember(uuid);
+            }
+            
+            buildings.add(b);
+        }
+    }
+    
+    public void save() {
+        for (Building b : buildings) {
+            DSLContext db = DSL.using(MySQL.getConnection(), SQLDialect.MYSQL);
+            if (b.id == 0) {
+                db.insertInto(BUILDINGS, BUILDINGS.OWNER, BUILDINGS.TYPE).values(b.getOwner().toString(), b.type.name()).execute();
+                Record br = db.select().from(BUILDINGS)
+                        .where(BUILDINGS.OWNER.equal(b.getOwner().toString()).and(BUILDINGS.TYPE.equal(b.type.name())))
+                        .orderBy(BUILDINGS.ID.desc()).fetchAny();
+                int id = br.get(BUILDINGS.ID);
+                for (int i = 0; i< b.corners.size(); i++) {
+                    db.insertInto(BUILDING_COORDS, BUILDING_COORDS.BUILDING_ID, BUILDING_COORDS.CORNER_ID, BUILDING_COORDS.X, BUILDING_COORDS.Z)
+                        .values(id, i, b.corners.get(i).getBlockX(), b.corners.get(i).getBlockZ()).execute();
+                }
+                for (UUID uuid : b.getMembers()) {
+                    db.insertInto(BUILDING_MEMBERS, BUILDING_MEMBERS.BUILDING_ID, BUILDING_MEMBERS.UUID)
+                        .values(id, uuid.toString()).execute();
+                }
+                
+            }
+        }
     }
     
     public boolean update(Building building) {

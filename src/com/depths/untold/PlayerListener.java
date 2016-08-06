@@ -22,10 +22,13 @@ import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.block.BlockBreakEvent;
 import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.entity.EntityDeathEvent;
 import org.bukkit.event.inventory.InventoryClickEvent;
 import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
+import org.bukkit.event.player.PlayerExpChangeEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.world.WorldSaveEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
@@ -151,6 +154,36 @@ public class PlayerListener implements Listener {
     }
     
     @EventHandler
+    public void onPlayerExp(PlayerExpChangeEvent event) {
+       Player p = event.getPlayer();
+       int amount = event.getAmount();
+       if (amount > 0) {
+           UntoldPlayer up = plugin.getPlayerManager().getUntoldPlayer(p);
+           up.addExperience(amount);
+       }
+    }
+    
+    @EventHandler
+    public void onPlayerDeath(EntityDeathEvent  event) {
+       if (event.getEntity() instanceof Player) {
+           Player p = (Player) event.getEntity();
+           UntoldPlayer up = plugin.getPlayerManager().getUntoldPlayer(p);
+           int amount = event.getDroppedExp();
+           up.addExperience(amount * -1); // avoids exp death farming
+       }
+    }
+    
+    @EventHandler
+    public void onWorldSave(WorldSaveEvent event) {
+        
+        if (event.getWorld().getName().equals("world")) {
+            plugin.sendConsole("Saving Untold");
+            plugin.getPlayerManager().savePlayers();
+            plugin.getBuildingManager().save();
+        }
+    }
+    
+    @EventHandler
     public void onPlayerInteract(PlayerInteractEvent event) {
         if (event.getHand() == EquipmentSlot.HAND && event.hasItem()) {
             ItemMeta im = event.getItem().getItemMeta();
@@ -216,6 +249,10 @@ public class PlayerListener implements Listener {
                                         }
                                     }
                                 } else {
+                                    Building _b = plugin.getBuildingManager().getBuilding(loc);
+                                    if (_b != null) {
+                                        _b.showBorder(p);
+                                    }
                                     p.sendMessage(ChatColor.RED+can);
                                 }
                                 break;

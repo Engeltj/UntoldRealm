@@ -29,15 +29,11 @@ public class Building {
     transient private Map<String, ArrayList<Location>> borders = new HashMap<String, ArrayList<Location>>(); // cache for visible building boarders
 
 
-    public Building (int id, UUID owner, Vector pos, int size, Buildings.BuildingType type) {
-        corners = new ArrayList();
+    public Building (int id, UUID owner, List<Vector> corners, Buildings.BuildingType type) {
+        this.corners = corners;
         this.id = id;
         this.owner = owner;
         this.type = type;
-        corners.add(new Vector(pos.getX()-size, 0, pos.getZ()-size));
-        corners.add(new Vector(pos.getX()+size, 0, pos.getZ()-size));
-        corners.add(new Vector(pos.getX()+size, 0, pos.getZ()+size));
-        corners.add(new Vector(pos.getX()-size, 0, pos.getZ()+size));
     }
 
     /**
@@ -68,11 +64,25 @@ public class Building {
         return false;
     }
     
+    public UUID getOwner() {
+        return this.owner;
+    }
+    
     public List<UUID> getMembers() {
         List<UUID> members = new ArrayList<UUID>();
         members.addAll(subowners);
-        members.add(owner);
+//        members.add(owner);
         return members;
+    }
+    
+    public void addMember(UUID uuid) {
+        String _uuid = uuid.toString();
+        for (UUID m : subowners) {
+           if (m.toString().equals(_uuid) ) {
+               return;
+           }
+        }
+        subowners.add(uuid);
     }
 
     public void clearBorders(Player p) {
