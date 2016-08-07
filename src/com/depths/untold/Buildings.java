@@ -1,8 +1,11 @@
 package com.depths.untold;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
@@ -21,10 +24,29 @@ import org.jooq.impl.DSL;
 public class Buildings {
     
     public enum BuildingType {
-        TOWN, CAPITAL, ARENA, SHOP
+        TOWN, 
+        CAPITAL,
+        ARENA, 
+        SHOP, 
+        HOUSE
     }
     
+    public final Map<BuildingType, String> DESCRIPTIONS;
+   
+    
     private List<Building> buildings = new ArrayList<Building>();
+    private final Untold plugin;
+    
+    
+    public Buildings() {
+        plugin = (Untold) Bukkit.getServer().getPluginManager().getPlugin("Untold");
+        DESCRIPTIONS = new HashMap<BuildingType, String>();
+        DESCRIPTIONS.put(BuildingType.TOWN, "Main protection region, allows constructing buildings.");
+        DESCRIPTIONS.put(BuildingType.CAPITAL, "Holds town statue, and becomes your respawn point.");
+        DESCRIPTIONS.put(BuildingType.ARENA, "Fight to the death! Winner in the area accrues the losers town earnings for 24 hours.");
+        DESCRIPTIONS.put(BuildingType.SHOP, "Place chests in this region fill with items, they immediately become for sale.");
+        DESCRIPTIONS.put(BuildingType.HOUSE, "Private region, chests only accessible by you.");
+    }
     
     public List<Building> getBuildings() {
         return buildings;
@@ -108,9 +130,9 @@ public class Buildings {
         }
     }
     
-    public boolean update(Building building) {
-        return true;
-    }
+//    public boolean update(Building building) {
+//        return true;
+//    }
     
     public Building create(Player owner, Location location, BuildingType type) {
         Vector v = location.toVector();
@@ -135,7 +157,12 @@ public class Buildings {
         return true;
     }
     
+    public boolean isInTown(Building town, Vector v) {
+        return (!town.hasClearance(v, 0));
+    }
+    
     public String canCreateBuilding(Player p, Location location, BuildingType bt) {
+        UntoldPlayer up = plugin.getPlayerManager().getUntoldPlayer(p);
         Vector v = location.toVector();
         v.setY(0);
         Building town = getTown(p);
@@ -143,12 +170,13 @@ public class Buildings {
             if (!town.hasClearance(location.toVector(), -3)) { // within town
                 for (Building b : buildings) { // Checks not overlapping a current building
                     if (b.type != BuildingType.TOWN && !b.hasClearance(v, 1)) {
-                        b.showBorder(p);
+                        up.clearBorders();
+                        up.showBorder(b);
                         return "Too close to another building";
                     }
                 }
                 return null;
-            } else if (town.hasClearance(location.toVector(), 0)) {
+            } else if (town.hasClearance(v, 0)) {
                 return "Building needs to be inside a settlement.";
             } else {
                 return "Too close to settlement borders";

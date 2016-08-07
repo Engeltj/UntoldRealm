@@ -35,7 +35,6 @@ public class Building {
     private UUID owner;
     public List<UUID> subowners = new ArrayList<UUID>();
     public List<Vector> corners;
-    transient private Map<String, ArrayList<Location>> borders = new HashMap<String, ArrayList<Location>>(); // cache for visible building boarders
 
 
     public Building (int id, UUID owner, List<Vector> corners, Buildings.BuildingType type) {
@@ -93,17 +92,6 @@ public class Building {
         }
         subowners.add(uuid);
     }
-
-    public void clearBorders(Player p) {
-        String uuid = p.getUniqueId().toString();
-        if (borders.containsKey(uuid)) {
-            ArrayList<Location> locs = borders.get(uuid);
-            for (Location loc : locs) {
-                p.sendBlockChange(loc, loc.getBlock().getType(), (byte) 0);
-            }
-            borders.remove(uuid);
-        }
-    }
     
     public void save() {
         DSLContext db = DSL.using(MySQL.getConnection(), SQLDialect.MYSQL);
@@ -128,22 +116,6 @@ public class Building {
                 .values(id, uuid.toString()).execute();
         }
         
-    }
-
-    public void showBorder(Player p) {
-        String uuid = p.getUniqueId().toString();
-        clearBorders(p);
-        borders.put(uuid, new ArrayList());
-        ArrayList<Location> locs = borders.get(uuid);
-        for (Vector v: corners) {
-            Location loc = v.toLocation(p.getWorld());
-            loc.setY(p.getLocation().getY()+5);
-            while (loc.getBlock().isEmpty()) {
-                loc.subtract(0, 1, 0);
-            }
-            locs.add(loc);
-            p.sendBlockChange(loc, Material.GLOWSTONE, (byte) 0);
-        }
     }
 
     /**

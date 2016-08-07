@@ -3,6 +3,7 @@ package com.depths.untold;
 import com.depths.untold.Building;
 import com.depths.untold.Buildings.BuildingType;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
@@ -28,6 +29,7 @@ import org.bukkit.event.player.AsyncPlayerChatEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerExpChangeEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.player.PlayerItemHeldEvent;
 import org.bukkit.event.world.WorldSaveEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.Inventory;
@@ -102,13 +104,13 @@ public class PlayerListener implements Listener {
             ItemStack is = event.getCurrentItem();
             if (is != null && is.getItemMeta() != null){
                 ItemMeta im = is.getItemMeta();
-                String itemName = im.getDisplayName();
+                final String itemName = im.getDisplayName();
                 for (ItemStack iss : p.getInventory().getContents()) {
                     if (iss == null) continue;
                     ItemMeta imm = iss.getItemMeta();
-                    
                     if (iss.hasItemMeta() && imm.getDisplayName().contains("Build Tool")) {
                         imm.setDisplayName("Build Tool - " + itemName);
+                        iss.setType(Material.SIGN);
                         iss.setItemMeta(imm);
                         p.sendMessage(ChatColor.GREEN + "Build tool set to " + itemName);
                         p.closeInventory();
@@ -130,6 +132,7 @@ public class PlayerListener implements Listener {
     public void onSignBreak(BlockBreakEvent e) {
         if (e.getBlock().getType() == Material.SIGN || e.getBlock().getType() == Material.SIGN_POST) {
             Player p = e.getPlayer();
+            UntoldPlayer up = plugin.getPlayerManager().getUntoldPlayer(p);
             Sign sign = (Sign) e.getBlock().getState();
             String line1 = sign.getLine(1);
             for (BuildingType bt : BuildingType.values()) {
@@ -137,12 +140,14 @@ public class PlayerListener implements Listener {
                     Building b = plugin.getBuildingManager().getBuilding(sign.getLocation());
                     if (b != null) {
                         if (b.hasMember(p)) {
-                            b.clearBorders(p);
                             if (b.type == BuildingType.TOWN && plugin.getBuildingManager().getTownBuildings(b).size() > 0) {
                                 p.sendMessage(ChatColor.GREEN + "Cannot disband settlement until all buildings within are disbanded.");
+                                e.setCancelled(true);
+                            } else {
+                                up.clearBorders();
+                                plugin.getBuildingManager().destroy(b);
+                                p.sendMessage(ChatColor.GREEN + bt.name() + " destroyed.");
                             }
-                            plugin.getBuildingManager().destroy(b);
-                            p.sendMessage(ChatColor.GREEN + bt.name() + " destroyed.");
                         } else {
                             e.setCancelled(true);
                         }
@@ -184,83 +189,128 @@ public class PlayerListener implements Listener {
     }
     
     @EventHandler
+    public void onPlayerChangeHand(PlayerItemHeldEvent event) {
+        Player p = event.getPlayer();
+        UntoldPlayer up = plugin.getPlayerManager().getUntoldPlayer(p);
+        up.clearBorders();
+    }
+    
+    @EventHandler
     public void onPlayerInteract(PlayerInteractEvent event) {
         if (event.getHand() == EquipmentSlot.HAND && event.hasItem()) {
             ItemMeta im = event.getItem().getItemMeta();
             String dn = (im != null) ? im.getDisplayName() : null;
-            if (dn != null && im.getDisplayName().contains("Build Tool")) {
-                Player p = event.getPlayer();
-                UntoldPlayer up = plugin.getPlayerManager().getUntoldPlayer(p);
-                if (event.getAction() == Action.LEFT_CLICK_BLOCK || event.getAction() == Action.LEFT_CLICK_AIR) {  // Tool selection
-                    Inventory i = Bukkit.createInventory(p, 18, "Build Tools");
-                    for (BuildingType bt : BuildingType.values()) {
-                        ItemStack iss;
-                        ItemMeta imm;
-                        if (bt == BuildingType.TOWN) {
-                            iss = new ItemStack(Material.STICK);
-                            imm = iss.getItemMeta();
-                            imm.setDisplayName(bt.name());
-                            List<String> lore = new ArrayList<String>();
-                            lore.add("Tool for creating protection regions");
-                            imm.setLore(lore);
-                            iss.addUnsafeEnchantment(Enchantment.DURABILITY, 1);
-                        } else {
-                            iss = new ItemStack(Material.SIGN);
-                            imm = iss.getItemMeta();
-                            imm.setDisplayName(bt.name());
-                        }
+            if (dn != null) {
+                if (dn.contains("Build Tool")) {
+                    Player p = event.getPlayer();
+                    UntoldPlayer up = plugin.getPlayerManager().getUntoldPlayer(p);
+                    if (event.getAction() == Action.LEFT_CLICK_BLOCK || event.getAction() == Action.LEFT_CLICK_AIR) {  // Tool selection
+                        Inventory i = Bukkit.createInventory(p, 18, "Build Tools");
                         
-                        iss.setItemMeta(imm);
-                        i.addItem(iss);
-                    }
-
-                    p.openInventory(i);
-                    event.setCancelled(true);
-                } else if (event.getAction() == Action.RIGHT_CLICK_BLOCK) { // Create region
-                    Location loc = event.getClickedBlock().getLocation();
-                    Building b = plugin.getBuildingManager().getBuildingFromCorner(loc);
-                    if (up.isModifyingBuilding()) {
-                        b = up.modifyBuilding(p, b, loc);
-                        p.sendMessage(ChatColor.GREEN + b.type.name() + " region resized.");
-                    } else if (b != null && b.hasMember(p)) { // if is a building and owned by player
-                        up.modifyBuilding(p, b, loc);
-                        p.sendMessage(ChatColor.YELLOW + "Right-click where you wish to resize the region to");
-                    } else {
+                        //Add tools
                         for (BuildingType bt : BuildingType.values()) {
-                            if (im.getDisplayName().contains(bt.name())) {
-                                String can = plugin.getBuildingManager().canCreateBuilding(p, loc, bt);
-                                if (can == null) {
-                                    if (!plugin.getPlayerManager().getUntoldPlayer(p).hitQuotaLimit(bt)) {
-                                        Building _b = plugin.getBuildingManager().create(p, loc, bt);
-                                        Block block = loc.getBlock();
-                                        Block above = block.getRelative( BlockFace.UP );
-                                        above.setType( Material.SIGN_POST );
-                                        Sign sign = (Sign) above.getState();
-                                        sign.setLine(1, bt.name());
-                                        sign.update();
-                                        _b.showBorder(p);
-                                        p.sendMessage(ChatColor.GREEN + bt.name() + " built.");
-                                        p.sendMessage(ChatColor.YELLOW + "To expand region, right-click a corner");
-                                    } else {
-                                        if (bt == BuildingType.CAPITAL) {
-                                            p.sendMessage(ChatColor.RED+"You already have a capital.");
-                                        } else {
-                                            p.sendMessage(ChatColor.RED+"You've hit the limit for this building type.");
-                                        }
-                                    }
+                            ItemStack iss;
+                            ItemMeta imm;
+                            if (bt == BuildingType.TOWN) {
+                                iss = new ItemStack(Material.PURPUR_BLOCK);
+                                
+                            } else {
+                                iss = new ItemStack(Material.END_BRICKS);
+                            }
+                            imm = iss.getItemMeta();
+                            imm.setDisplayName(bt.name());
+                            String desc = plugin.getBuildingManager().DESCRIPTIONS.get(bt);
+                            ArrayList<String> lore = new ArrayList<String>();
+                            int j = 0;
+                            while (j < desc.length()) { // Word wrap descriptions
+                                int new_j = desc.indexOf(" ", j+25);
+                                if (new_j < 0) new_j = desc.length();
+                                lore.add(desc.substring(j, new_j).trim());
+                                j = new_j;
+                            }
+                            imm.setLore(lore);
+                            
+                            iss.setItemMeta(imm);
+                            i.addItem(iss);
+                        }
+                        //Add info item
+                        ItemStack is = new ItemStack(Material.STRING);
+                        ArrayList<String> lore = new ArrayList<String>();
+                        lore.add("For showing the boundry of a region.");
+                        lore.add("Right-click a block to show boundry");
+                        ItemMeta imm = is.getItemMeta();
+                        imm.setDisplayName("Region Viewer");
+                        imm.setLore(lore);
+                        is.setItemMeta(imm);
+                        i.addItem(is);
+                        
+                        p.openInventory(i);
+                        event.setCancelled(true);
+                    } else if (event.getAction() == Action.RIGHT_CLICK_BLOCK) { // Create region
+                        if (dn.contains("Region Viewer")) {
+                            Block block = event.getClickedBlock();
+                            if (block != null) {
+                                Location loc = block.getLocation();
+                                Building b = plugin.getBuildingManager().getBuilding(loc);
+                                if (b != null) {
+                                    up.clearBorders();
+                                    up.showBorder(b);
+                                    p.sendMessage(ChatColor.GREEN + "Four corners of region are shown.");
                                 } else {
-                                    Building _b = plugin.getBuildingManager().getBuilding(loc);
-                                    if (_b != null) {
-                                        _b.showBorder(p);
-                                    }
-                                    p.sendMessage(ChatColor.RED+can);
+                                    p.sendMessage(ChatColor.RED + "Not in a region.");
                                 }
-                                break;
+                            }
+                            event.setCancelled(true);
+                            return;
+                        }
+                        Location loc = event.getClickedBlock().getLocation();
+                        Building b = plugin.getBuildingManager().getBuildingFromCorner(loc);
+                        if (up.isModifyingBuilding()) {
+                            b = up.modifyBuilding(p, b, loc);
+                            if (b != null)
+                                p.sendMessage(ChatColor.GREEN + b.type.name() + " region resized.");
+                        } else if (b != null && b.hasMember(p)) { // if is a building and owned by player
+                            up.modifyBuilding(p, b, loc);
+                            p.sendMessage(ChatColor.YELLOW + "Right-click where you wish to resize the region to");
+                        } else {
+                            for (BuildingType bt : BuildingType.values()) {
+                                if (im.getDisplayName().contains(bt.name())) {
+                                    String can = plugin.getBuildingManager().canCreateBuilding(p, loc, bt);
+                                    if (can == null) {
+                                        if (!plugin.getPlayerManager().getUntoldPlayer(p).hitQuotaLimit(bt)) {
+                                            Building _b = plugin.getBuildingManager().create(p, loc, bt);
+                                            Block block = loc.getBlock();
+                                            Block above = block.getRelative( BlockFace.UP );
+                                            above.setType( Material.SIGN_POST );
+                                            Sign sign = (Sign) above.getState();
+                                            sign.setLine(1, bt.name());
+                                            sign.update();
+                                            up.clearBorders();
+                                            up.showBorder(_b);
+                                            p.sendMessage(ChatColor.GREEN + bt.name() + " built.");
+                                            p.sendMessage(ChatColor.YELLOW + "To expand region, right-click a corner");
+                                        } else {
+                                            if (bt == BuildingType.CAPITAL) {
+                                                p.sendMessage(ChatColor.RED+"You already have a capital.");
+                                            } else {
+                                                p.sendMessage(ChatColor.RED+"You've hit the limit for this building type.");
+                                            }
+                                        }
+                                    } else {
+                                        Building _b = plugin.getBuildingManager().getBuilding(loc);
+                                        if (_b != null) {
+                                            up.clearBorders();
+                                            up.showBorder(_b);
+                                        }
+                                        p.sendMessage(ChatColor.RED+can);
+                                    }
+                                    break;
+                                }
                             }
                         }
+                        
+                        event.setCancelled(true);
                     }
-                    
-                    event.setCancelled(true);
                 }
             }
         }
