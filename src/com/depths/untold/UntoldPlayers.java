@@ -39,6 +39,15 @@ public class UntoldPlayers {
         }
     }
     
+    public void removeUntoldPlayer(Player p) {
+        UUID uuid = p.getUniqueId();
+        if (players.containsKey(uuid)) {
+            UntoldPlayer up = players.get(p.getUniqueId());
+            up.save();
+            players.remove(uuid);
+        }
+    }
+    
     public void savePlayers() {
         Iterator it = players.entrySet().iterator();
         while (it.hasNext()) {

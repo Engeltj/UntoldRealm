@@ -6,22 +6,17 @@
 package com.depths.untold;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
-import org.bukkit.Bukkit;
+import org.apache.commons.lang.StringUtils;
 import org.bukkit.Location;
-import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 import static org.depths.untold.generated.Tables.BUILDINGS;
 import static org.depths.untold.generated.Tables.BUILDING_COORDS;
 import static org.depths.untold.generated.Tables.BUILDING_MEMBERS;
-import org.depths.untold.generated.tables.records.BuildingCoordsRecord;
 import org.jooq.DSLContext;
 import org.jooq.Record;
-import org.jooq.Result;
 import org.jooq.SQLDialect;
 import org.jooq.impl.DSL;
 
@@ -35,6 +30,9 @@ public class Building {
     private UUID owner;
     public List<UUID> subowners = new ArrayList<UUID>();
     public List<Vector> corners;
+    
+    public String name = "";
+    public String welcome_msg = "";
 
 
     public Building (int id, UUID owner, List<Vector> corners, Buildings.BuildingType type) {
@@ -42,10 +40,15 @@ public class Building {
         this.id = id;
         this.owner = owner;
         this.type = type;
+        this.welcome_msg = "Welcome to this region that is of type: " + type.name();
     }
 
     /**
      * Creating with an unknown primary key (new entry)
+     * @param owner
+     * @param pos
+     * @param size
+     * @param type
      */
     public Building (UUID owner, Vector pos, int size, Buildings.BuildingType type) {
         corners = new ArrayList();
@@ -56,6 +59,37 @@ public class Building {
         corners.add(new Vector(pos.getX()+size, 0, pos.getZ()-size));
         corners.add(new Vector(pos.getX()+size, 0, pos.getZ()+size));
         corners.add(new Vector(pos.getX()-size, 0, pos.getZ()+size));
+        this.welcome_msg = "Welcome to this region that is of type: " + StringUtils.capitalize(type.name());
+    }
+    
+//    public boolean isLeaving(Player p) {
+//        int w = corners.get(1).getBlockX() - corners.get(0).getBlockX();
+//        int h = corners.get(2).getBlockZ() - corners.get(0).getBlockZ();
+//        int size = Math.max(w, h);
+//        Location loc = p.getLocation();
+//        
+//        if (Math.abs(loc.getBlockX() - corners.get(0).getBlockX()) < size+10) { // if potentially near region
+//            if (loc.getBlockX() < corners.get(0).getBlockX()) { // left edge
+//                
+//            } else if (loc.getBlockZ() < corners.get(0).getBlockZ()) { // top edge
+//            
+//            } else if (loc.getBlockX() > corners.get(0).getBlockX()) { // right edge
+//            
+//            } else if (loc.getBlockZ() > corners.get(0).getBlockZ()) { // bottom edge
+//            
+//            }
+//        } else {
+//            return false;
+//        }
+//        return false;
+//    }
+    
+    public boolean isInRegion(Player p) {
+        if (!this.hasClearance(p.getLocation().toVector(), 1)) {
+            //if (this.hasClearance(p.getLocation().toVector(), -3))
+                return true;
+        }
+        return false;
     }
     
     public boolean hasMember(Player p) {

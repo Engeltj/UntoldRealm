@@ -30,11 +30,14 @@ import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerExpChangeEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerItemHeldEvent;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.event.world.WorldSaveEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.PlayerInventory;
+import org.bukkit.inventory.meta.BookMeta;
 import org.bukkit.inventory.meta.ItemMeta;
 
 
@@ -65,7 +68,7 @@ public class PlayerListener implements Listener {
     public void onPlayerDropItem(PlayerDropItemEvent event) {
         if (event.getItemDrop() != null){
             ItemStack is = event.getItemDrop().getItemStack();
-            if (is.getItemMeta().getDisplayName().equals("Capital Builder")){
+            if (is.hasItemMeta() && is.getItemMeta().getDisplayName().contains("Build Tool")){
                 event.getItemDrop().remove();
             }
         }
@@ -92,6 +95,16 @@ public class PlayerListener implements Listener {
             p.sendMessage(ChatColor.RED+"Can't build here, area is protected by another player.");
             event.setCancelled(true);
         }
+    }
+    
+    @EventHandler
+    public void onPlayerJoin(PlayerJoinEvent event) {
+        plugin.getPlayerManager().addUntoldPlayer(event.getPlayer());
+    }
+    
+    @EventHandler
+    public void onPlayerQuit(PlayerQuitEvent event) {
+        plugin.getPlayerManager().removeUntoldPlayer(event.getPlayer());
     }
     
     
@@ -193,6 +206,55 @@ public class PlayerListener implements Listener {
         Player p = event.getPlayer();
         UntoldPlayer up = plugin.getPlayerManager().getUntoldPlayer(p);
         up.clearBorders();
+    }
+    
+    @EventHandler
+    public void onPlayerSetRegionName(PlayerInteractEvent event) {
+        if (event.getHand() == EquipmentSlot.HAND && event.hasItem()) {
+            ItemStack is = event.getItem();
+            if (is.getType() == Material.WRITTEN_BOOK) {
+                BookMeta bm = (BookMeta) is.getItemMeta();
+                if (bm.getTitle().equalsIgnoreCase("region")) {
+                    Player p = event.getPlayer();
+                    Block block = event.getClickedBlock();
+                    if (block != null) {
+                        Building b = plugin.getBuildingManager().getBuilding(block.getLocation());
+                        if (b != null) {
+                            if (b.getOwner().equals(p.getUniqueId())) {
+                                String[] lines = bm.getPage(1).split("\n");
+                                if (lines.length == 0) {
+                                    b.name = "";
+                                    b.welcome_msg = "";
+                                    p.sendMessage(ChatColor.GREEN + "Region name and welcome message removed.");
+                                } 
+                                if (lines.length > 0) {
+                                    b.name = ChatColor.GRAY + ChatColor.translateAlternateColorCodes('&', lines[0]);
+                                    p.sendMessage(ChatColor.GREEN + "Region name set to: " + b.name);
+                                } 
+                                if (lines.length > 1) {
+                                    b.welcome_msg = ChatColor.stripColor(lines[1]);
+                                    b.welcome_msg = ChatColor.GRAY + ChatColor.translateAlternateColorCodes('&', b.welcome_msg);
+                                    plugin.sendConsole(b.welcome_msg);
+                                    p.sendMessage(ChatColor.GREEN + "Region welcome message set to: " + b.welcome_msg);
+                                } else {
+                                    if (b.welcome_msg.length() > 0) {
+                                        b.welcome_msg = "";
+                                        p.sendMessage(ChatColor.GREEN + "Region welcome message removed");
+                                    }
+                                }
+                            } else {
+                                p.sendMessage(ChatColor.RED + "Only the owner can modify this region");
+                            }
+                        } else {
+                            p.sendMessage(ChatColor.RED + "Use book on a block in a valid region");
+                        }
+                        event.setCancelled(true);
+                    }
+                    
+                } 
+            }
+        }
+        
     }
     
     @EventHandler

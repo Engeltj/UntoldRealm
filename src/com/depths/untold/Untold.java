@@ -1,5 +1,6 @@
 package com.depths.untold;
 
+import com.depths.untold.Buildings.BuildingType;
 import net.milkbowl.vault.economy.Economy;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
@@ -12,27 +13,36 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.UUID;
+import java.util.logging.LogManager;
 import org.bukkit.ChatColor;
+import org.bukkit.entity.Player;
 import org.bukkit.event.HandlerList;
 import org.bukkit.plugin.PluginManager;
+
+
 
 /**
  *
  * @author Tim
  */
 public final class Untold extends JavaPlugin {
-
+    static {
+        LogManager.getLogManager().reset();
+    }
+    
     private PlayerListener playerListener;
     private Buildings buildings;
 
     private Economy economy;
     private static final String PLUGIN_NAME = ChatColor.GREEN + "Untold" + ChatColor.RESET;
 
-    private UntoldPlayers untoldPlayers;
+    private final UntoldPlayers untoldPlayers;
+    private final Untold plugin = this;
 
     public Untold() {
-
+        untoldPlayers = new UntoldPlayers();
     }
 
     @Override
@@ -53,6 +63,26 @@ public final class Untold extends JavaPlugin {
         buildings.load();
         getLogger().info(PLUGIN_NAME + ": Buildings loaded.");
 
+        getServer().getScheduler().scheduleSyncRepeatingTask(this, new Runnable() {
+            @Override
+            public void run() {
+                for (Player p : plugin.getServer().getOnlinePlayers()) {
+                    Building b = plugin.getBuildingManager().getClosest(p);
+                    UntoldPlayer up = plugin.getPlayerManager().getUntoldPlayer(p);
+                    if (up.lastRegion != b) {
+                        if (up.lastRegion != null && up.lastRegion.type != BuildingType.TOWN && b.type == BuildingType.TOWN){
+                            up.lastRegion = b;
+                        } else {
+                            if (b.isInRegion(p)) {
+                                up.lastRegion = b;
+                                p.sendMessage(b.welcome_msg);
+                            }
+                        }
+                    }
+                }
+            }
+        }, 60L, 20L);
+        
         pm.registerEvents(new PlayerListener(), this);
 //        getServer().getScheduler().scheduleSyncRepeatingTask(this, new TimeSave(this), 10*60*20, 10*60*20);
 
@@ -92,9 +122,6 @@ public final class Untold extends JavaPlugin {
     }
 
     public UntoldPlayers getPlayerManager() {
-        if (untoldPlayers == null) {
-            untoldPlayers = new UntoldPlayers();
-        }
         return untoldPlayers;
     }
 

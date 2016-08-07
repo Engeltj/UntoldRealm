@@ -22,18 +22,20 @@ import org.jooq.impl.*;
  * @author Tim
  */
 public class UntoldPlayer {
-
+    private final Player p;
     private final UUID uuid;
     private final Untold plugin;
     private long experience = 0L;
     private Timestamp lastlogin;
 
     transient private Vector move_building;
+    transient public Building lastRegion = null; // for purposes of welcome/farewell messages from regions
 
     private final Map<BuildingType, Integer> quotas = new HashMap<BuildingType, Integer>();
     transient private ArrayList<Location> borders = new ArrayList<Location>(); // cache for visible building boarders
 
     public UntoldPlayer(Player p) {
+        this.p = p;
         this.plugin = (Untold) Bukkit.getServer().getPluginManager().getPlugin("Untold");
         this.uuid = p.getUniqueId();
         for (BuildingType b : BuildingType.values()) {
@@ -41,7 +43,7 @@ public class UntoldPlayer {
         }
         load();
     }
-
+    
     public void addExperience(int exp) {
         experience += exp;
     }

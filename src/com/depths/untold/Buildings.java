@@ -95,6 +95,28 @@ public class Buildings {
         return town;
     }
     
+    public Building getClosest(Player p) {
+        Location loc = p.getLocation();
+        Building closest_b = null;
+        int closest_value = 999999999;
+        for (Building b : buildings) {
+            int dist = 999999999;
+            if (loc.getBlockZ() >= b.corners.get(0).getBlockZ() &&
+                    loc.getBlockZ() <= b.corners.get(3).getBlockZ()) {
+                dist = Math.min(Math.abs(loc.getBlockX() - b.corners.get(0).getBlockX()),
+                                  Math.abs(loc.getBlockX() - b.corners.get(1).getBlockX()));
+            } else {
+                dist = Math.min(Math.abs(loc.getBlockZ() - b.corners.get(0).getBlockZ()),
+                                  Math.abs(loc.getBlockZ() - b.corners.get(1).getBlockZ()));
+            }
+            if (dist < closest_value) {
+                closest_value = dist;
+                closest_b = b;
+            }
+        }
+        return closest_b;
+    }
+    
     public void load () {
         buildings.clear();
         DSLContext db = DSL.using(MySQL.getConnection(), SQLDialect.MYSQL);
