@@ -258,6 +258,7 @@ public class UntoldPlayer {
         lastlogin = r.get(PLAYERS.LASTLOGIN);
         experience = r.get(PLAYERS.EXPERIENCE);
         lastBonus = r.get(PLAYERS.DAILY_BONUS);
+        lastBonus = lastBonus == null ? new Date() : lastBonus;
     }
 
     public void save() {
