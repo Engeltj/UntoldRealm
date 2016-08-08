@@ -1,13 +1,16 @@
 package com.depths.untold;
 
 import com.depths.untold.Buildings.BuildingType;
+import java.util.Date;
 import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.Calendar;
 import static org.depths.untold.generated.Tables.PLAYERS;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import net.milkbowl.vault.economy.EconomyResponse;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
@@ -22,14 +25,19 @@ import org.jooq.impl.*;
  * @author Tim
  */
 public class UntoldPlayer {
+
     private final Player p;
     private final UUID uuid;
     private final Untold plugin;
     private long experience = 0L;
     private Timestamp lastlogin;
+    private Date lastBonus;
 
     transient private Vector move_building;
     transient public Building lastRegion = null; // for purposes of welcome/farewell messages from regions
+
+    transient public Building destroyRegion = null; // for purposes of destroying a region (confirm dialog)
+    transient public int destroyRegionExpire = -1; // for purposes of destroying a region (expiration of request)
 
     private final Map<BuildingType, Integer> quotas = new HashMap<BuildingType, Integer>();
     transient private ArrayList<Location> borders = new ArrayList<Location>(); // cache for visible building boarders
@@ -41,15 +49,64 @@ public class UntoldPlayer {
         for (BuildingType b : BuildingType.values()) {
             quotas.put(b, 1);
         }
+        quotas.put(BuildingType.HOUSE, 100);
         load();
+        
+        quotas.put(BuildingType.SHOP, getTier());
     }
-    
+
     public void addExperience(int exp) {
         experience += exp;
     }
 
     public long getExperience() {
         return experience;
+    }
+
+    public int getLevel() {
+        if (experience <= 255) {
+            return (int) experience / 17;
+        } else if (experience > 272 && experience < 887) {
+            return (int) ((Math.sqrt(24 * experience - 5159) + 59) / 6);
+        } else if (experience > 825) {
+            return (int) ((Math.sqrt(56 * experience - 32511) + 303) / 14);
+        }
+        return 0;
+    }
+    
+    public int getTier() {
+        int level = getLevel();
+        if (level < 20) {
+            return 1;
+        } else if (level < 40) {
+            return 2;
+        } else if (level < 60) {
+            return 3;
+        } else if (level < 80) {
+            return 4;
+        } else if (level < 100) {
+            return 5;
+        } else if (level < 120) {
+            return 6;
+        } else {
+            return 7;
+        }
+    }
+
+    public int getDailyBonus() {
+        if (lastBonus == null) {
+            return 100;
+        }
+        Calendar cal1 = Calendar.getInstance();
+        Calendar cal2 = Calendar.getInstance();
+        cal1.setTime(lastBonus);
+        cal2.setTime(new Date());
+        if (cal1.get(Calendar.DAY_OF_YEAR) != cal2.get(Calendar.DAY_OF_YEAR)) {
+            lastBonus = cal2.getTime();
+            return 100;
+        } else {
+            return 0;
+        }
     }
 
     private int getBuildingCount(BuildingType bt) {
@@ -107,7 +164,7 @@ public class UntoldPlayer {
                 corners.get(0).setX(loc.getX());
                 corners.get(2).setZ(loc.getZ());
             }
-            
+
             if (_b.type != BuildingType.TOWN) {
                 for (Vector corner : corners) {
                     Building town = plugin.getBuildingManager().getTown(p);
@@ -134,6 +191,19 @@ public class UntoldPlayer {
                     }
                 }
             }
+
+            int cost = _b.getResizeCost(corners);
+            if (cost > 0) {
+                EconomyResponse r = plugin.getEconomy().withdrawPlayer(_p, _p.getWorld().getName(), cost);
+                if (!r.transactionSuccess()) {
+                    _p.sendMessage(ChatColor.RED + "Insufficient funds, this operation will cost " + ChatColor.GOLD + cost + " clownfish" + ChatColor.RED + ".");
+                    return null;
+                }
+            } else if (cost < 0) {
+                plugin.getEconomy().depositPlayer(_p, _p.getWorld().getName(), cost * -1);
+                _p.sendMessage(ChatColor.GREEN + "You were refunded " + cost * -1 + ChatColor.GOLD + " clownfish" + ChatColor.GREEN + ".");
+            }
+
             _b.corners = corners;
             Bukkit.getServer().getScheduler().scheduleSyncDelayedTask(plugin, new Runnable() {
                 public void run() {
@@ -141,6 +211,7 @@ public class UntoldPlayer {
                     up.showBorder(_b);
                 }
             }, 1);
+
             move_building = null;
             return _b;
         }
@@ -150,7 +221,7 @@ public class UntoldPlayer {
     public boolean isModifyingBuilding() {
         return move_building != null;
     }
-    
+
     public void clearBorders() {
         Player p = plugin.getServer().getPlayer(uuid);
         if (p != null && p.isOnline()) {
@@ -159,15 +230,14 @@ public class UntoldPlayer {
             }
             borders.remove(uuid);
         }
-        
     }
-    
+
     public void showBorder(Building b) {
         Player p = plugin.getServer().getPlayer(uuid);
         if (p != null && p.isOnline()) {
-            for (Vector v: b.corners) {
+            for (Vector v : b.corners) {
                 Location loc = v.toLocation(p.getWorld());
-                loc.setY(p.getLocation().getY()+5);
+                loc.setY(p.getLocation().getY() + 5);
                 while (loc.getBlock().isEmpty()) {
                     loc.subtract(0, 1, 0);
                 }
@@ -187,13 +257,16 @@ public class UntoldPlayer {
         }
         lastlogin = r.get(PLAYERS.LASTLOGIN);
         experience = r.get(PLAYERS.EXPERIENCE);
+        lastBonus = r.get(PLAYERS.DAILY_BONUS);
     }
 
     public void save() {
         DSLContext db = DSL.using(MySQL.getConnection(), SQLDialect.MYSQL);
         db.update(PLAYERS)
+                .set(PLAYERS.NAME, p.getName())
                 .set(PLAYERS.EXPERIENCE, experience)
                 .set(PLAYERS.LASTLOGIN, lastlogin)
+                .set(PLAYERS.DAILY_BONUS, new java.sql.Date(lastBonus.getTime()))
                 .where(PLAYERS.UUID.equal(uuid.toString())).execute();
     }
 }

@@ -31,6 +31,9 @@ public class Buildings {
         HOUSE
     }
     
+    public static final int COST_PER_BLOCK = 5;
+    public static final int SHOP_INCOME = 25; // per day
+    
     public final Map<BuildingType, String> DESCRIPTIONS;
    
     
@@ -136,6 +139,8 @@ public class Buildings {
             }
             
             Building b = new Building(id, owner, corners, type);
+            b.name = r.get(BUILDINGS.NAME);
+            b.welcome_msg = r.get(BUILDINGS.WELCOME_MSG);
             Record[] r_members = db.select().from(BUILDING_MEMBERS).where(BUILDING_MEMBERS.BUILDING_ID.equal(id)).fetchArray();
             for (Record c : r_members) {
                 UUID uuid = UUID.fromString(c.get(BUILDING_MEMBERS.UUID));
@@ -189,19 +194,23 @@ public class Buildings {
         v.setY(0);
         Building town = getTown(p);
         if (town != null) {
-            if (!town.hasClearance(location.toVector(), -3)) { // within town
+            if (bt == BuildingType.TOWN) {
+                return "You already have a settlement.";
+            } else if (!town.hasClearance(location.toVector(), -3)) { // within town
                 for (Building b : buildings) { // Checks not overlapping a current building
                     if (b.type != BuildingType.TOWN && !b.hasClearance(v, 1)) {
                         up.clearBorders();
                         up.showBorder(b);
-                        return "Too close to another building";
+                        return "Too close to another building.";
                     }
                 }
                 return null;
             } else if (town.hasClearance(v, 0)) {
                 return "Building needs to be inside a settlement.";
             } else {
-                return "Too close to settlement borders";
+                up.clearBorders();
+                up.showBorder(town);
+                return "Too close to settlement borders.";
             }
         } else {
             if (bt == BuildingType.TOWN) {
@@ -212,13 +221,49 @@ public class Buildings {
         }
     }
     
+    public String canDestroyBuilding(Player p, Building b) {
+        if (b.getOwner().equals(p.getUniqueId())) {
+            if (b.type != BuildingType.TOWN) {
+                return null;
+            } else {
+                if (this.getTownBuildings(b).size() > 0) {
+                    return "You must destroy all buildings/regions inside first";
+                }
+            }
+        } else {
+            return "You are not the owner of this region.";
+        }
+        return null;
+    }
+    
     public Building getTown(Player p) {
         for (Building b : buildings) {
-            if (b.type == BuildingType.TOWN && b.hasMember(p)) {
+            if (b.type == BuildingType.TOWN && (b.hasMember(p) || b.getOwner().equals(p.getUniqueId()))) {
                 return b;
             }
         }
         return null;
+    }
+    
+    public List<Building> getTowns() {
+        List<Building> towns = new ArrayList<>();
+        for (Building b : buildings) {
+            if (b.type == BuildingType.TOWN) {
+                towns.add(b);
+            }
+        }
+        return towns;
+    }
+    
+    public List<Building> getTownShops(Building town) {
+        List<Building> buildings = this.getTownBuildings(town);
+        List<Building> shops = new ArrayList<>();
+        for (Building b : buildings) {
+            if (b.type == BuildingType.SHOP) {
+                shops.add(b);
+            }
+        }
+        return shops;
     }
     
     public boolean hasTown(Player p) {

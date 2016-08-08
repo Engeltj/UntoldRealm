@@ -5,6 +5,7 @@
  */
 package com.depths.untold;
 
+import com.depths.untold.Buildings.BuildingType;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -33,6 +34,7 @@ public class Building {
     
     public String name = "";
     public String welcome_msg = "";
+    
 
 
     public Building (int id, UUID owner, List<Vector> corners, Buildings.BuildingType type) {
@@ -40,7 +42,6 @@ public class Building {
         this.id = id;
         this.owner = owner;
         this.type = type;
-        this.welcome_msg = "Welcome to this region that is of type: " + type.name();
     }
 
     /**
@@ -59,30 +60,24 @@ public class Building {
         corners.add(new Vector(pos.getX()+size, 0, pos.getZ()-size));
         corners.add(new Vector(pos.getX()+size, 0, pos.getZ()+size));
         corners.add(new Vector(pos.getX()-size, 0, pos.getZ()+size));
-        this.welcome_msg = "Welcome to this region that is of type: " + StringUtils.capitalize(type.name());
     }
     
-//    public boolean isLeaving(Player p) {
-//        int w = corners.get(1).getBlockX() - corners.get(0).getBlockX();
-//        int h = corners.get(2).getBlockZ() - corners.get(0).getBlockZ();
-//        int size = Math.max(w, h);
-//        Location loc = p.getLocation();
-//        
-//        if (Math.abs(loc.getBlockX() - corners.get(0).getBlockX()) < size+10) { // if potentially near region
-//            if (loc.getBlockX() < corners.get(0).getBlockX()) { // left edge
-//                
-//            } else if (loc.getBlockZ() < corners.get(0).getBlockZ()) { // top edge
-//            
-//            } else if (loc.getBlockX() > corners.get(0).getBlockX()) { // right edge
-//            
-//            } else if (loc.getBlockZ() > corners.get(0).getBlockZ()) { // bottom edge
-//            
-//            }
-//        } else {
-//            return false;
-//        }
-//        return false;
-//    }
+    public int getResizeCost(List<Vector> corners) {
+        if (type != BuildingType.TOWN) {
+            int curW = this.corners.get(1).getBlockX() - this.corners.get(0).getBlockX();
+            int curH = this.corners.get(0).getBlockZ() - this.corners.get(3).getBlockZ();
+            int newW = corners.get(1).getBlockX() - corners.get(0).getBlockX();
+            int newH = corners.get(0).getBlockZ() - corners.get(3).getBlockZ();
+            int curArea = curW * curH;
+            int newArea = newW * newH;
+            if (newArea <= 400) // under a certain size, its FREE
+                return 0;
+            int cost = (newArea - curArea) * Buildings.COST_PER_BLOCK;
+            return cost;
+        } else { // all non-town regions are free
+            return 0;
+        }
+    }
     
     public boolean isInRegion(Player p) {
         if (!this.hasClearance(p.getLocation().toVector(), 1)) {
@@ -117,6 +112,12 @@ public class Building {
         return members;
     }
     
+    public List<UUID> getAllMembers() {
+        List<UUID> members = getMembers();
+        members.add(getOwner());
+        return members;
+    }
+    
     public void addMember(UUID uuid) {
         String _uuid = uuid.toString();
         for (UUID m : subowners) {
@@ -137,6 +138,8 @@ public class Building {
             id = br.get(BUILDINGS.ID);
             
         }
+        
+        db.update(BUILDINGS).set(BUILDINGS.NAME, this.name).set(BUILDINGS.WELCOME_MSG, this.welcome_msg).where(BUILDINGS.ID.equal(id)).execute();
         
         db.deleteFrom(BUILDING_COORDS).where(BUILDING_COORDS.BUILDING_ID.equal(id)).execute();
         db.deleteFrom(BUILDING_MEMBERS).where(BUILDING_MEMBERS.BUILDING_ID.equal(id)).execute();

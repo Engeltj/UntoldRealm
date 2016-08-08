@@ -21,33 +21,30 @@ import org.bukkit.entity.Player;
 import org.bukkit.event.HandlerList;
 import org.bukkit.plugin.PluginManager;
 
-
-
 /**
  *
  * @author Tim
  */
 public final class Untold extends JavaPlugin {
-    static {
-        LogManager.getLogManager().reset();
-    }
-    
+
+//    static {
+//        LogManager.getLogManager().reset();
+//    }
+
     private PlayerListener playerListener;
     private Buildings buildings;
 
     private Economy economy;
     private static final String PLUGIN_NAME = ChatColor.GREEN + "Untold" + ChatColor.RESET;
 
-    private final UntoldPlayers untoldPlayers;
+    private UntoldPlayers untoldPlayers;
     private final Untold plugin = this;
 
-    public Untold() {
-        untoldPlayers = new UntoldPlayers();
-    }
 
     @Override
     public void onEnable() {
         playerListener = new PlayerListener();
+        untoldPlayers = new UntoldPlayers();
 
         PluginManager pm = getServer().getPluginManager();
         if (!setupEconomy()) {
@@ -62,31 +59,48 @@ public final class Untold extends JavaPlugin {
         buildings = new Buildings();
         buildings.load();
         getLogger().info(PLUGIN_NAME + ": Buildings loaded.");
-
+        
         getServer().getScheduler().scheduleSyncRepeatingTask(this, new Runnable() {
             @Override
             public void run() {
+                
+
                 for (Player p : plugin.getServer().getOnlinePlayers()) {
                     Building b = plugin.getBuildingManager().getClosest(p);
                     UntoldPlayer up = plugin.getPlayerManager().getUntoldPlayer(p);
-                    if (up.lastRegion != b) {
-                        if (up.lastRegion != null && up.lastRegion.type != BuildingType.TOWN && b.type == BuildingType.TOWN){
+
+                    if (up.lastRegion != b) { // region change
+                        if (up.lastRegion != null && up.lastRegion.type != BuildingType.TOWN && b.type == BuildingType.TOWN) {
                             up.lastRegion = b;
-                        } else {
-                            if (b.isInRegion(p)) {
-                                up.lastRegion = b;
+                        } else if (b.isInRegion(p)) {
+                            up.lastRegion = b;
+                            if (b.welcome_msg.length() > 0) {
                                 p.sendMessage(b.welcome_msg);
                             }
+                        } else {
+                            up.lastRegion = null;
+                        }
+                    } else if (up.lastRegion != null) { // was in region, check if still in
+                        if (!up.lastRegion.isInRegion(p)) { // if no longer is the region
+                            up.lastRegion = null;
                         }
                     }
                 }
             }
         }, 60L, 20L);
-        
+
+        getServer().getScheduler().scheduleSyncRepeatingTask(this, new Runnable() {
+            @Override
+            public void run() {
+                getPlayerManager().updateWalkSpeeds();
+            }
+        }, 40L, 40L);
+
         pm.registerEvents(new PlayerListener(), this);
 //        getServer().getScheduler().scheduleSyncRepeatingTask(this, new TimeSave(this), 10*60*20, 10*60*20);
 
         getLogger().info(PLUGIN_NAME + " by Depths has been enabled");
+        
     }
 
     @Override
@@ -115,6 +129,10 @@ public final class Untold extends JavaPlugin {
         }
         economy = rsp.getProvider();
         return economy != null;
+    }
+
+    public Economy getEconomy() {
+        return economy;
     }
 
     public Buildings getBuildingManager() {

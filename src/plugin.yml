@@ -6,7 +6,7 @@ description: Provides additional events to the server
 depend: []
 authors: [Tim, Ben]
 commands:
-  build:
-    description: Allows you to build up your town
   untold:
-    description: Untold admin commands
+    description: Allows you to build up your town
+  u:
+    description: Allows you to build up your town
