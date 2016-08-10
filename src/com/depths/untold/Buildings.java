@@ -31,6 +31,7 @@ public class Buildings {
         HOUSE
     }
     
+    public static final double TAX_PER_BLOCK = 0.1;
     public static final int COST_PER_BLOCK = 5;
     public static final int SHOP_INCOME = 25; // per day
     
@@ -97,6 +98,8 @@ public class Buildings {
         }
         return town;
     }
+    
+    
     
     public Building getClosest(Player p) {
         Location loc = p.getLocation();

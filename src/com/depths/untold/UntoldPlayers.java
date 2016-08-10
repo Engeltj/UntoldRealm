@@ -17,6 +17,8 @@ import org.jooq.impl.DSL;
 import java.sql.Timestamp;
 import java.util.Calendar;
 import java.util.List;
+import org.bukkit.ChatColor;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 
@@ -43,9 +45,19 @@ public class UntoldPlayers {
         for (Building town : towns) {
             List<Building> shops = plugin.getBuildingManager().getTownShops(town);
             int shop_count = shops.size();
-            int member_count = town.getAllMembers().size();
-            int shop_earnings = shop_count * Buildings.SHOP_INCOME * member_count;
-            int bonus_earnings = shop_count * Buildings.SHOP_INCOME * member_count;
+            List<UUID> members = town.getAllMembers();
+            int shop_earnings = shop_count * Buildings.SHOP_INCOME / members.size();
+            int bonus_earnings = (int)((members.size()-1) * 0.05 * shop_earnings);
+            for (UUID uuid : members) {
+                OfflinePlayer op = plugin.getServer().getOfflinePlayer(uuid);
+                plugin.getEconomy().depositPlayer(op, shop_earnings + bonus_earnings);
+                if (op.isOnline()) {
+                    Player p = (Player) op;
+                    p.sendMessage(ChatColor.GREEN+"You've received " + (shop_earnings + bonus_earnings) + ChatColor.GOLD + " cf " + ChatColor.GREEN+ "as your share of towns income.");
+                    if (members.size() > 1)
+                        p.sendMessage(ChatColor.GOLD +""+ bonus_earnings + " cf of this was bonus (+5% for every member of the town)");
+                }
+            }
         }
         
         
@@ -65,7 +77,10 @@ public class UntoldPlayers {
                     total += is.getAmount();
             }
             float delta = 1f - (max_items - total) / max_items;
-            p.setWalkSpeed((2.5f - delta)/10f);
+            float speed = (2.5f - delta)/10f;
+            speed = (float) Math.ceil(speed * 100)/100f;
+            if (p.getWalkSpeed() != speed)
+                p.setWalkSpeed(speed);
         }
     }
     

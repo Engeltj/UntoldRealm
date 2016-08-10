@@ -9,8 +9,6 @@ import com.depths.untold.Buildings.BuildingType;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import org.apache.commons.lang.StringUtils;
-import org.bukkit.Location;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 import static org.depths.untold.generated.Tables.BUILDINGS;
@@ -75,6 +73,25 @@ public class Building {
             int cost = (newArea - curArea) * Buildings.COST_PER_BLOCK;
             return cost;
         } else { // all non-town regions are free
+            return 0;
+        }
+    }
+    
+    public int getArea() {
+        Vector c0  = this.corners.get(0);
+        Vector c2  = this.corners.get(2);
+        int w = c2.getBlockX() - c0.getBlockX();
+        int h = c2.getBlockZ() - c0.getBlockZ();
+        
+        return w*h;
+        
+    }
+    
+    public double getTaxes() {
+        if (type == BuildingType.TOWN) {
+            int area = getArea();
+            return area*Buildings.TAX_PER_BLOCK;
+        } else {
             return 0;
         }
     }

@@ -154,7 +154,7 @@ public class PlayerListener implements Listener {
                     if (b != null) {
                         if (b.type == BuildingType.HOUSE) {
                             if (!b.getOwner().equals(p.getUniqueId())) {
-                                p.sendMessage(ChatColor.RED + "This chest is protected by " + Bukkit.getServer().getPlayer(b.getOwner()).getName());
+                                p.sendMessage(ChatColor.RED + "This chest is protected by " + plugin.getServer().getOfflinePlayer(b.getOwner()).getName());
                                 event.setCancelled(true);
                             }
                         } else {
@@ -351,8 +351,12 @@ public class PlayerListener implements Listener {
                                 if (b != null) {
                                     up.clearBorders();
                                     up.showBorder(b);
-                                    p.sendMessage(ChatColor.GREEN + "Region type: " + ChatColor.YELLOW + StringUtils.capitalize(b.type.name().toLowerCase()));
-                                    p.sendMessage(ChatColor.GREEN + "Four corners of region are shown.");
+                                    p.sendMessage(ChatColor.GREEN + "\nRegion type: " + ChatColor.YELLOW + StringUtils.capitalize(b.type.name().toLowerCase()));
+                                    p.sendMessage(ChatColor.GREEN + "Owner: " + ChatColor.YELLOW + plugin.getServer().getOfflinePlayer(b.getOwner()).getName());
+                                    if (b.type == BuildingType.TOWN) {
+                                        p.sendMessage(ChatColor.GREEN + "Taxes: " + ChatColor.YELLOW + Math.round(b.getTaxes()) + ChatColor.GOLD + " cf " + ChatColor.YELLOW + "per day");
+                                    }
+                                    p.sendMessage(ChatColor.GREEN + "Corners of region are shown.");
                                 } else {
                                     p.sendMessage(ChatColor.RED + "Not a region.");
                                 }
@@ -416,7 +420,7 @@ public class PlayerListener implements Listener {
         Player p = (Player) sender;
         if (cmd.getName().equalsIgnoreCase("u") || cmd.getName().equalsIgnoreCase("untold")) {
             if (args.length > 0) {
-                if (args[0].equalsIgnoreCase("tool")) {
+                if (args[0].equalsIgnoreCase("build")) {
                     ItemStack is = new ItemStack(Material.STICK);
                     ItemMeta meta = (ItemMeta) is.getItemMeta();
                     List<String> lore = new ArrayList<String>();
@@ -437,6 +441,7 @@ public class PlayerListener implements Listener {
                             if (up.destroyRegion == b) {
                                 plugin.getBuildingManager().destroy(b);
                                 p.sendMessage(ChatColor.GREEN + "Region destroyed.");
+                                return true;
                             } else {
                                 up.destroyRegion = b;
                                 Bukkit.getScheduler().cancelTask(up.destroyRegionExpire);
@@ -446,7 +451,7 @@ public class PlayerListener implements Listener {
                                     }
                                 }, 600L);
                             }
-                            p.sendMessage(ChatColor.YELLOW + "Type '/b destroy' again to confirm.");
+                            p.sendMessage(ChatColor.YELLOW + "Type '/u destroy' again to confirm.");
                         } else {
                             p.sendMessage(ChatColor.RED + msg);
                         }
@@ -454,24 +459,29 @@ public class PlayerListener implements Listener {
                         p.sendMessage(ChatColor.RED + "Please stand inside a region first.");
                     }
                     return true;
-                } else if (args[0].equalsIgnoreCase("destroy")) {
+                } else if (args[0].equalsIgnoreCase("exp")) {
                     UntoldPlayer up = plugin.getPlayerManager().getUntoldPlayer(p);
                     p.sendMessage(ChatColor.GREEN + "Current Tier: " + ChatColor.YELLOW + up.getTier());
                     p.sendMessage(ChatColor.GREEN + "Total Level: " + ChatColor.YELLOW + up.getLevel());
                     p.sendMessage(ChatColor.GREEN + "Experience Gained: " + ChatColor.YELLOW + up.getExperience());
                     return true;
                 } else if (args[0].equalsIgnoreCase("taxes")) {
-                    UntoldPlayer up = plugin.getPlayerManager().getUntoldPlayer(p);
-                    p.sendMessage(ChatColor.GREEN + "Current Tier: " + ChatColor.YELLOW + up.getTier());
-                    p.sendMessage(ChatColor.GREEN + "Total Level: " + ChatColor.YELLOW + up.getLevel());
-                    p.sendMessage(ChatColor.GREEN + "Experience Gained: " + ChatColor.YELLOW + up.getExperience());
+//                    UntoldPlayer up = plugin.getPlayerManager().getUntoldPlayer(p);
+//                    p.sendMessage(ChatColor.GREEN + "Current Tier: " + ChatColor.YELLOW + up.getTier());
+//                    p.sendMessage(ChatColor.GREEN + "Total Level: " + ChatColor.YELLOW + up.getLevel());
+//                    p.sendMessage(ChatColor.GREEN + "Experience Gained: " + ChatColor.YELLOW + up.getExperience());
                     return true;
+                }  else if (args[0].equalsIgnoreCase("test")) {
+                    if (args.length > 1 && args[1].equalsIgnoreCase("crunch")) {
+                        plugin.getPlayerManager().crunchShopEarnings();
+                        return true;
+                    }
                 }
                 
             }
             
-            p.sendMessage(ChatColor.GREEN + "Usage: '/u <option>'. Your available options are:");
-            p.sendMessage(ChatColor.YELLOW + "tool" + ChatColor.GREEN + " - Spawn a build tool in your inventory");
+            p.sendMessage(ChatColor.GREEN + "Usage: '/u " + ChatColor.YELLOW+ "<option>" + ChatColor.GREEN+ "'. Your available options are:");
+            p.sendMessage(ChatColor.YELLOW + "build" + ChatColor.GREEN + " - Spawn a build tool in your inventory");
             p.sendMessage(ChatColor.YELLOW + "destroy" + ChatColor.GREEN + " - Destroy a region you are standing in");
             p.sendMessage(ChatColor.YELLOW + "exp" + ChatColor.GREEN + " - Shows your current tier, total exp, and level");
             p.sendMessage(ChatColor.YELLOW + "taxes" + ChatColor.GREEN + " - Shows your daily land tax");
