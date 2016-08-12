@@ -45,17 +45,16 @@ public class UntoldPlayers {
         for (Building town : towns) {
             List<Building> shops = plugin.getBuildingManager().getTownShops(town);
             int shop_count = shops.size();
-            List<UUID> members = town.getAllMembers();
+            List<String> members = town.getAllMembers();
             int shop_earnings = shop_count * Buildings.SHOP_INCOME / members.size();
             int bonus_earnings = (int)((members.size()-1) * 0.05 * shop_earnings);
-            for (UUID uuid : members) {
-                OfflinePlayer op = plugin.getServer().getOfflinePlayer(uuid);
+            for (String uuid : members) {
+                OfflinePlayer op = plugin.getServer().getOfflinePlayer(UUID.fromString(uuid));
                 plugin.getEconomy().depositPlayer(op, shop_earnings + bonus_earnings);
                 if (op.isOnline()) {
                     Player p = (Player) op;
-                    p.sendMessage(ChatColor.GREEN+"You've received " + (shop_earnings + bonus_earnings) + ChatColor.GOLD + " cf " + ChatColor.GREEN+ "as your share of towns income.");
-                    if (members.size() > 1)
-                        p.sendMessage(ChatColor.GOLD +""+ bonus_earnings + " cf of this was bonus (+5% for every member of the town)");
+                    p.sendMessage(ChatColor.GREEN+"You've received " + (shop_earnings + bonus_earnings) + ChatColor.GOLD + " cf " + ChatColor.GREEN+ "as your share of income.");
+                    p.sendMessage(ChatColor.GOLD +""+ bonus_earnings + " cf of this was bonus (+5% for every member of the town)");
                 }
             }
         }

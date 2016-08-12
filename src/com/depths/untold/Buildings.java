@@ -2,6 +2,7 @@ package com.depths.untold;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -31,9 +32,9 @@ public class Buildings {
         HOUSE
     }
     
-    public static final double TAX_PER_BLOCK = 0.1;
+    public static final double TAX_PER_BLOCK = 0.05;
     public static final int COST_PER_BLOCK = 5;
-    public static final int SHOP_INCOME = 25; // per day
+    public static final int SHOP_INCOME = 200; // per day
     
     public final Map<BuildingType, String> DESCRIPTIONS;
    
@@ -59,10 +60,10 @@ public class Buildings {
     public List<Building> getTownBuildings(Building b) {
         List<Building> _buildings = new ArrayList<Building>();
         if (b.type == BuildingType.TOWN) {
-            List<UUID> members = b.getMembers();
+            List<String> members = b.getMembers();
             members.add(b.getOwner());
             for (Building _b : buildings) {
-                for (UUID uuid : members) {
+                for (String uuid : members) {
                     if (_b != b && _b.hasMember(uuid))
                         _buildings.add(_b);
                 }
@@ -146,7 +147,7 @@ public class Buildings {
             b.welcome_msg = r.get(BUILDINGS.WELCOME_MSG);
             Record[] r_members = db.select().from(BUILDING_MEMBERS).where(BUILDING_MEMBERS.BUILDING_ID.equal(id)).fetchArray();
             for (Record c : r_members) {
-                UUID uuid = UUID.fromString(c.get(BUILDING_MEMBERS.UUID));
+                String uuid = c.get(BUILDING_MEMBERS.UUID);
                 b.addMember(uuid);
             }
             
@@ -195,7 +196,7 @@ public class Buildings {
         UntoldPlayer up = plugin.getPlayerManager().getUntoldPlayer(p);
         Vector v = location.toVector();
         v.setY(0);
-        Building town = getTown(p);
+        Building town = getTown(p.getUniqueId().toString());
         if (town != null) {
             if (bt == BuildingType.TOWN) {
                 return "You already have a settlement.";
@@ -239,9 +240,9 @@ public class Buildings {
         return null;
     }
     
-    public Building getTown(Player p) {
+    public Building getTown(String uuid) {
         for (Building b : buildings) {
-            if (b.type == BuildingType.TOWN && (b.hasMember(p) || b.getOwner().equals(p.getUniqueId()))) {
+            if (b.type == BuildingType.TOWN && (b.hasMember(uuid) || b.getOwner().equals(uuid))) {
                 return b;
             }
         }
@@ -270,6 +271,19 @@ public class Buildings {
     }
     
     public boolean hasTown(Player p) {
-        return (getTown(p)!=null);
+        return (getTown(p.getUniqueId().toString())!=null);
+    }
+    
+    
+    
+    public void removeMember(Building town, String uuid) {
+        Iterator it = buildings.iterator();
+        while (it.hasNext()) {
+            Building b = (Building) it.next();
+            if (b.getOwner().equals(uuid)) {
+                buildings.remove(b);
+            }
+        }
+        town.subowners.remove(uuid);
     }
 }

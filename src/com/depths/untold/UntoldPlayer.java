@@ -5,7 +5,7 @@ import java.util.Date;
 import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Calendar;
-import static org.depths.untold.generated.Tables.PLAYERS;
+import static org.depths.untold.generated.Tables.*;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -15,6 +15,7 @@ import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.entity.Player;
 import org.bukkit.util.Vector;
 import org.jooq.*;
@@ -27,7 +28,7 @@ import org.jooq.impl.*;
 public class UntoldPlayer {
 
     private final Player p;
-    private final UUID uuid;
+    private final String uuid;
     private final Untold plugin;
     private long experience = 0L;
     private Timestamp lastlogin;
@@ -45,7 +46,7 @@ public class UntoldPlayer {
     public UntoldPlayer(Player p) {
         this.p = p;
         this.plugin = (Untold) Bukkit.getServer().getPluginManager().getPlugin("Untold");
-        this.uuid = p.getUniqueId();
+        this.uuid = p.getUniqueId().toString();
         for (BuildingType b : BuildingType.values()) {
             quotas.put(b, 1);
         }
@@ -122,6 +123,36 @@ public class UntoldPlayer {
     public boolean hitQuotaLimit(BuildingType b) {
         return quotas.get(b) - getBuildingCount(b) <= 0;
     }
+    
+    public void invitePlayer(String uuid) {
+        DSLContext db = DSL.using(MySQL.getConnection(), SQLDialect.MYSQL);
+        Record r = db.select().from(INVITES).where(INVITES.INVITER.equal(this.uuid).and(INVITES.INVITEE.equal(uuid))).fetchOne();
+        if (r == null) {
+            Calendar cal = Calendar.getInstance();
+            cal.setTime(new Date());
+            cal.add(Calendar.DAY_OF_MONTH, 7);
+            db.insertInto(INVITES)
+                    .set(INVITES.INVITER, this.uuid)
+                    .set(INVITES.INVITEE, uuid.toString())
+                    .set(INVITES.EXPIRY, new java.sql.Date(cal.getTime().getTime()))
+                    .execute();
+        }
+    }
+    
+    public boolean respondInvite(String uuid, boolean accept) {
+        DSLContext db = DSL.using(MySQL.getConnection(), SQLDialect.MYSQL);
+        Record r = db.select().from(INVITES).where(INVITES.INVITER.equal(this.uuid).and(INVITES.INVITEE.equal(uuid))).fetchOne();
+        if (r != null) {
+            if (accept) {
+                Building town = plugin.getBuildingManager().getTown(uuid);
+                town.addMember(this.uuid.toString());
+            }
+            db.deleteFrom(INVITES).where(INVITES.INVITER.equal(this.uuid).and(INVITES.INVITEE.equal(uuid))).execute();
+        } else {
+            return false;
+        }
+        return true;
+    }
 
     private static List<Vector> cloneVectorList(List<Vector> list) {
         List<Vector> clone = new ArrayList<Vector>(list.size());
@@ -167,7 +198,7 @@ public class UntoldPlayer {
 
             if (_b.type != BuildingType.TOWN) {
                 for (Vector corner : corners) {
-                    Building town = plugin.getBuildingManager().getTown(p);
+                    Building town = plugin.getBuildingManager().getTown(p.getUniqueId().toString());
                     if (!plugin.getBuildingManager().isInTown(town, corner)) {
                         up.clearBorders();
                         up.showBorder(town);
@@ -177,7 +208,7 @@ public class UntoldPlayer {
                     }
                 }
             } else {
-                Building town = plugin.getBuildingManager().getTown(p);
+                Building town = plugin.getBuildingManager().getTown(p.getUniqueId().toString());
                 List<Building> buildings = plugin.getBuildingManager().getTownBuildings(town);
                 for (Building b_town : buildings) {
                     for (Vector corner : b_town.corners) {
@@ -249,11 +280,11 @@ public class UntoldPlayer {
 
     private void load() {
         DSLContext db = DSL.using(MySQL.getConnection(), SQLDialect.MYSQL);
-        Record r = db.select().from(PLAYERS).where(PLAYERS.UUID.equal(uuid.toString())).fetchOne();
+        Record r = db.select().from(PLAYERS).where(PLAYERS.UUID.equal(uuid)).fetchOne();
         if (r == null) {
-            plugin.sendConsole("New player found, creating for " + uuid.toString());
+            plugin.sendConsole("New player found, creating for " + uuid);
             db.insertInto(PLAYERS, PLAYERS.UUID).values(uuid.toString()).execute();
-            r = db.select().from(PLAYERS).where(PLAYERS.UUID.equal(uuid.toString())).fetchOne();
+            r = db.select().from(PLAYERS).where(PLAYERS.UUID.equal(uuid)).fetchOne();
         }
         lastlogin = r.get(PLAYERS.LASTLOGIN);
         experience = r.get(PLAYERS.EXPERIENCE);
@@ -268,6 +299,6 @@ public class UntoldPlayer {
                 .set(PLAYERS.EXPERIENCE, experience)
                 .set(PLAYERS.LASTLOGIN, lastlogin)
                 .set(PLAYERS.DAILY_BONUS, new java.sql.Date(lastBonus.getTime()))
-                .where(PLAYERS.UUID.equal(uuid.toString())).execute();
+                .where(PLAYERS.UUID.equal(uuid)).execute();
     }
 }

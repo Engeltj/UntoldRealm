@@ -5,12 +5,14 @@ import com.depths.untold.Buildings.BuildingType;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
 import org.apache.commons.lang.StringUtils;
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
 import org.bukkit.Color;
 import org.bukkit.Location;
 import org.bukkit.Material;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockFace;
 import org.bukkit.block.Sign;
@@ -154,11 +156,11 @@ public class PlayerListener implements Listener {
                     if (b != null) {
                         if (b.type == BuildingType.HOUSE) {
                             if (!b.getOwner().equals(p.getUniqueId())) {
-                                p.sendMessage(ChatColor.RED + "This chest is protected by " + plugin.getServer().getOfflinePlayer(b.getOwner()).getName());
+                                p.sendMessage(ChatColor.RED + "This chest is protected by " + plugin.getServer().getOfflinePlayer(UUID.fromString(b.getOwner())).getName());
                                 event.setCancelled(true);
                             }
                         } else {
-                            Building town = plugin.getBuildingManager().getTown(p);
+                            Building town = plugin.getBuildingManager().getTown(p.getUniqueId().toString());
                             if (town == null || !plugin.getBuildingManager().isInTown(town, loc.toVector())) {
                                 p.sendMessage(ChatColor.RED + "This chest is protected.");
                                 event.setCancelled(true);
@@ -352,7 +354,7 @@ public class PlayerListener implements Listener {
                                     up.clearBorders();
                                     up.showBorder(b);
                                     p.sendMessage(ChatColor.GREEN + "\nRegion type: " + ChatColor.YELLOW + StringUtils.capitalize(b.type.name().toLowerCase()));
-                                    p.sendMessage(ChatColor.GREEN + "Owner: " + ChatColor.YELLOW + plugin.getServer().getOfflinePlayer(b.getOwner()).getName());
+                                    p.sendMessage(ChatColor.GREEN + "Owner: " + ChatColor.YELLOW + plugin.getServer().getOfflinePlayer(UUID.fromString(b.getOwner())).getName());
                                     if (b.type == BuildingType.TOWN) {
                                         p.sendMessage(ChatColor.GREEN + "Taxes: " + ChatColor.YELLOW + Math.round(b.getTaxes()) + ChatColor.GOLD + " cf " + ChatColor.YELLOW + "per day");
                                     }
@@ -471,20 +473,73 @@ public class PlayerListener implements Listener {
 //                    p.sendMessage(ChatColor.GREEN + "Total Level: " + ChatColor.YELLOW + up.getLevel());
 //                    p.sendMessage(ChatColor.GREEN + "Experience Gained: " + ChatColor.YELLOW + up.getExperience());
                     return true;
-                }  else if (args[0].equalsIgnoreCase("test")) {
+                } else if (args[0].equalsIgnoreCase("test")) {
                     if (args.length > 1 && args[1].equalsIgnoreCase("crunch")) {
                         plugin.getPlayerManager().crunchShopEarnings();
+                        return true;
+                    }
+                } else if (args[0].equalsIgnoreCase("faction")) {
+                    if (args.length > 1) {
+                        if (args[1].equalsIgnoreCase("invite")) {
+                            if (args.length > 2) {
+                                OfflinePlayer op = plugin.getServer().getOfflinePlayer(args[2]);
+                                if (op != null) {
+                                    UntoldPlayer up = plugin.getPlayerManager().getUntoldPlayer(p);
+                                    up.invitePlayer(op.getUniqueId().toString());
+                                    p.sendMessage(ChatColor.GREEN + op.getName() + " invited!");
+                                } else {
+                                    p.sendMessage(ChatColor.RED + "Player not found.");
+                                }
+                            } else {
+                                p.sendMessage(ChatColor.RED + "You must specify a player to invite.");
+                            }
+                            return true;
+                        } else if (args[1].equalsIgnoreCase("accept")) {
+                            if (args.length > 2) {
+                                OfflinePlayer op = plugin.getServer().getOfflinePlayer(args[2]);
+                                if (op != null) {
+                                    UntoldPlayer up = plugin.getPlayerManager().getUntoldPlayer(p);
+                                    up.invitePlayer(op.getUniqueId().toString());
+                                    p.sendMessage(ChatColor.GREEN + op.getName() + "'s invite was accepted, welcome!");
+                                } else {
+                                    p.sendMessage(ChatColor.RED + "Invite not found.");
+                                }
+                            } else {
+                                p.sendMessage(ChatColor.RED + "You must specify a player to accept invite from.");
+                            }
+                            return true;
+                        } else if (args[1].equalsIgnoreCase("quit")) {
+//                            UntoldPlayer up = plugin.getPlayerManager().getUntoldPlayer(p);
+                            Building town = plugin.getBuildingManager().getTown(p.getUniqueId().toString());
+                            if (town != null) {
+                                if (town.getOwner().equals(p.getUniqueId())) {
+                                    p.sendMessage(ChatColor.RED + "You cannot quit a town you own.");
+                                } else {
+                                    plugin.getBuildingManager().removeMember(town, p.getUniqueId().toString());
+                                    p.sendMessage(ChatColor.GREEN + "You've successfully left the town.");
+                                }
+                            } else {
+                                p.sendMessage(ChatColor.RED + "You are not part of a town.");
+                            }
+                            return true;
+                        }
+                        
+                    } else {
+                        p.sendMessage(ChatColor.YELLOW + "/u faction invite <player>" + ChatColor.GREEN + " - Invite a player to join your town (full trust)");
+                        p.sendMessage(ChatColor.YELLOW + "/u faction accept <invitee>" + ChatColor.GREEN + " - Accept an invite to join a town");
+                        p.sendMessage(ChatColor.YELLOW + "/u faction quit" + ChatColor.GREEN + " - Quit your faction (losing all regions)");
                         return true;
                     }
                 }
                 
             }
-            
-            p.sendMessage(ChatColor.GREEN + "Usage: '/u " + ChatColor.YELLOW+ "<option>" + ChatColor.GREEN+ "'. Your available options are:");
+             
+           p.sendMessage(ChatColor.GREEN + "Usage: '/u " + ChatColor.YELLOW+ "<option>" + ChatColor.GREEN+ "'. Your available options are:");
             p.sendMessage(ChatColor.YELLOW + "build" + ChatColor.GREEN + " - Spawn a build tool in your inventory");
             p.sendMessage(ChatColor.YELLOW + "destroy" + ChatColor.GREEN + " - Destroy a region you are standing in");
             p.sendMessage(ChatColor.YELLOW + "exp" + ChatColor.GREEN + " - Shows your current tier, total exp, and level");
             p.sendMessage(ChatColor.YELLOW + "taxes" + ChatColor.GREEN + " - Shows your daily land tax");
+            p.sendMessage(ChatColor.YELLOW + "faction" + ChatColor.GREEN + " - Manage which town you belong to/members of your town");
             return true;
         } else if (cmd.getName()
                 .equalsIgnoreCase("untold")) {

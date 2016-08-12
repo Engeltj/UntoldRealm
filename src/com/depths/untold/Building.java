@@ -26,8 +26,8 @@ import org.jooq.impl.DSL;
 public class Building {
     public Buildings.BuildingType type;
     public int id; // Primary key
-    private UUID owner;
-    public List<UUID> subowners = new ArrayList<UUID>();
+    private String owner;
+    public List<String> subowners = new ArrayList<String>();
     public List<Vector> corners;
     
     public String name = "";
@@ -38,7 +38,7 @@ public class Building {
     public Building (int id, UUID owner, List<Vector> corners, Buildings.BuildingType type) {
         this.corners = corners;
         this.id = id;
-        this.owner = owner;
+        this.owner = owner.toString();
         this.type = type;
     }
 
@@ -52,7 +52,7 @@ public class Building {
     public Building (UUID owner, Vector pos, int size, Buildings.BuildingType type) {
         corners = new ArrayList();
         this.id = 0;
-        this.owner = owner;
+        this.owner = owner.toString();
         this.type = type;
         corners.add(new Vector(pos.getX()-size, 0, pos.getZ()-size));
         corners.add(new Vector(pos.getX()+size, 0, pos.getZ()-size));
@@ -105,39 +105,39 @@ public class Building {
     }
     
     public boolean hasMember(Player p) {
-        return hasMember(p.getUniqueId());
+        return hasMember(p.getUniqueId().toString());
     }
     
-    public boolean hasMember(UUID uuid) {
+    public boolean hasMember(String uuid) {
         if (owner.equals(uuid))
             return true;
-        for (UUID _uuid : subowners) {
+        for (String _uuid : subowners) {
             if (_uuid.equals(uuid))
                 return true;
         }
         return false;
     }
     
-    public UUID getOwner() {
+    public String getOwner() {
         return this.owner;
     }
     
-    public List<UUID> getMembers() {
-        List<UUID> members = new ArrayList<UUID>();
+    public List<String> getMembers() {
+        List<String> members = new ArrayList<String>();
         members.addAll(subowners);
 //        members.add(owner);
         return members;
     }
     
-    public List<UUID> getAllMembers() {
-        List<UUID> members = getMembers();
+    public List<String> getAllMembers() {
+        List<String> members = getMembers();
         members.add(getOwner());
         return members;
     }
     
-    public void addMember(UUID uuid) {
+    public void addMember(String uuid) {
         String _uuid = uuid.toString();
-        for (UUID m : subowners) {
+        for (String m : subowners) {
            if (m.toString().equals(_uuid) ) {
                return;
            }
@@ -165,7 +165,7 @@ public class Building {
             db.insertInto(BUILDING_COORDS, BUILDING_COORDS.BUILDING_ID, BUILDING_COORDS.CORNER_ID, BUILDING_COORDS.X, BUILDING_COORDS.Z)
                 .values(id, i, corners.get(i).getBlockX(), corners.get(i).getBlockZ()).execute();
         }
-        for (UUID uuid : getMembers()) {
+        for (String uuid : getMembers()) {
             db.insertInto(BUILDING_MEMBERS, BUILDING_MEMBERS.BUILDING_ID, BUILDING_MEMBERS.UUID)
                 .values(id, uuid.toString()).execute();
         }
